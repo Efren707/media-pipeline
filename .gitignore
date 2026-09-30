@@ -1,0 +1,48 @@
+# --- Secrets / credentials ---
+.env
+.env.*
+!.env.example
+.aws/
+*.pem
+*.key
+
+# --- Java / Spring Boot ---
+target/
+build/
+!**/src/**/build/
+.gradle/
+*.class
+*.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+*.log
+
+# --- Node / React ---
+node_modules/
+dist/
+coverage/
+npm-debug.log*
+yarn-error.log*
+
+# --- Python / Lambdas ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# --- AWS CDK ---
+cdk.out/
+cdk.context.json
+.cdk.staging/
+
+# --- Claude Code (personal settings; shared ones in .claude/settings.json are committed) ---
+.claude/settings.local.json
+
+# --- IDE / OS ---
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
