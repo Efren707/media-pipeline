@@ -30,10 +30,10 @@ React (S3 + CloudFront)
 Spring Boot on EC2 + ALB (role: myS3Role) ── users + searchable labels ──▶ RDS PostgreSQL
    │ presigned PUT URL                          ▲ reads status/results from S3
    ▼                                            │
-S3  uploads/{user}/{job}.jpg ──▶ λ Validate (type, size, thumbnail)
-    stage/analyze/{job}.json ──▶ λ Analyze (self-hosted model: tags + moderation)
-    results/{user}/{job}.json ──▶ SNS ──▶ email (filtered per user)
-    status/{job}.json        ◀── every stage writes its status here
+S3  uploads/{user}/{job}.jpg       ──▶ λ Validate (type, size, thumbnail)
+    stage/analyze/{user}/{job}.json ──▶ λ Analyze (self-hosted model: tags + moderation)
+    results/{user}/{job}.json       ──▶ SNS ──▶ email (filtered per user)
+    status/{user}/{job}.json        ◀── every stage writes its status here
 ```
 
 ## Repo layout
@@ -64,3 +64,18 @@ docs/       Proposal, design, sandbox constraints
 | **Nov 16, 2026** | M5 Final presentation |
 
 Phases and progress: [ROADMAP.md](ROADMAP.md).
+
+## Current implementation (2026-10-13)
+
+The first secure AWS vertical slice is scaffolded:
+
+- TypeScript CDK creates a private encrypted media bucket and imports the existing Academy Lambda role.
+- An `uploads/` S3 event invokes the Python 3.12 Validate Lambda.
+- Validate checks key syntax, byte size, true image format and decoded dimensions, creates a metadata-free thumbnail, and writes the next-stage manifest before publishing the ready status.
+- Upload reads are bound to the event's source ETag, and conditional S3 writes make duplicate or concurrent events idempotent without requiring `s3:ListBucket`.
+- Sixteen Lambda tests cover valid, invalid, corrupt, mislabeled-format, oversized, duplicate, stale-event, terminal-state, job-reuse, concurrent-update, untrusted-key, and unexpected-bucket paths.
+- CI validates contracts and operational scripts, type-checks, tests, synthesizes CDK, audits production Node dependencies, and rejects IAM-role or NAT-Gateway resources.
+
+Live deployment still requires an active AWS Academy session. Follow [infra/README.md](infra/README.md), then record the smoke-test result in [the Phase 2 plan](docs/plans/02-infrastructure-foundation.md).
+
+The repository is intended to remain as a portfolio and skills-building project after grading. Optional teardown removes deployed AWS resources—not source code.

@@ -1,0 +1,32 @@
+{
+  "name": "media-pipeline-infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS CDK infrastructure for the Media Pipeline class project",
+  "scripts": {
+    "build": "tsc",
+    "build:lambda": "python ../lambdas/validate/build_package.py",
+    "test": "jest --runInBand",
+    "synth": "npm run build:lambda && cdk synth",
+    "check:template": "node scripts/check-template.mjs",
+    "verify": "npm run build:lambda && npm run build && npm test && cdk synth --quiet && npm run check:template"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.220.0",
+    "constructs": "^10.4.2",
+    "dotenv": "^17.2.3",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.10.2",
+    "aws-cdk": "^2.1000.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

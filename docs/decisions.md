@@ -67,3 +67,19 @@ Most of D1–D8 come from the sandbox service tests in [SETUP.md §4](../SETUP.m
 - **Date:** 2026-09-30
 - **Why:** Each sandbox has a $20 budget. EC2 + RDS + ALB running 24/7 costs about $1.20/day. Costly resources run only during sessions, NAT Gateways are banned, and we use the smallest instance sizes.
 - **Alternatives:** leaving resources running (the budget would run out in ~2.5 weeks).
+
+### D13: User-scoped status keys and idempotent validation
+- **Date:** 2026-10-13
+- **Why:** `status/{userId}/{jobId}.json` lets the backend enforce per-user access consistently. S3 can deliver an event more than once, so Validate compares the source ETag and uses deterministic output keys before doing duplicate work.
+- **Alternatives:** global `status/{jobId}.json` keys (harder to reason about user isolation); random output keys (duplicates accumulate on retries).
+
+### D14: Keep the portfolio code; deploy paid resources on demand
+- **Date:** 2026-10-13
+- **Why:** The source, tests, and CDK are useful for resumes and continued learning. Automatic deletion after grading would remove that value. Guarded scripts can destroy deployed resources and demo data when desired without deleting the repository.
+- **Alternatives:** automatically delete the whole project after grading; leave every AWS resource running continuously.
+
+### D15: Conditional S3 writes and immutable job IDs
+- **Date:** 2026-10-13
+- **Replaces:** the duplicate-handling implementation described in D13; user-scoped status keys remain unchanged.
+- **Why:** `lambda-run-role` has object read/write access but no `s3:ListBucket`, so probing for a missing status object can return `AccessDenied` instead of a reliable not-found result. Validate now downloads the source with its inspected ETag, conditionally claims an eligible job as `VALIDATING` before creating outputs, creates artifacts with `If-None-Match: *`, and updates status with `If-Match`. The manifest is created before `READY_FOR_ANALYSIS`, later states cannot be overwritten, and a job ID is bound to one source key and ETag.
+- **Alternatives:** grant `s3:ListBucket` (the Academy role cannot be changed); accept last-writer-wins updates (can regress `COMPLETE`); reuse a job ID for replacement bytes (can mix artifacts from different uploads).
