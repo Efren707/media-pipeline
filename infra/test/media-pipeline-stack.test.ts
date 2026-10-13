@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import * as path from "node:path";
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
 import { MediaPipelineStack } from "../lib/media-pipeline-stack";
@@ -56,5 +58,17 @@ describe("MediaPipelineStack", () => {
         ]
       }
     });
+  });
+
+  test("builds the Lambda asset before CDK tests in the verify command", () => {
+    const packageJson = JSON.parse(
+      readFileSync(path.resolve(__dirname, "../package.json"), "utf8")
+    );
+    const verifyCommand = String(packageJson.scripts.verify);
+    const packageIndex = verifyCommand.indexOf("npm run build:lambda");
+    const testIndex = verifyCommand.indexOf("npm test");
+
+    expect(packageIndex).toBeGreaterThanOrEqual(0);
+    expect(packageIndex).toBeLessThan(testIndex);
   });
 });

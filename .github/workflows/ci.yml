@@ -31,6 +31,9 @@ jobs:
       - name: Test Validate Lambda
         run: python -m unittest discover -s lambdas/validate/tests -v
 
+      - name: Test operational scripts
+        run: python -m unittest discover -s scripts/tests -v
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"

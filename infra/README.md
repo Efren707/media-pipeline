@@ -15,16 +15,20 @@ It deliberately creates no IAM role and no NAT Gateway.
 ```bash
 cd infra
 npm ci
-python ../lambdas/validate/build_package.py --offline-local
-npm run build
-npm test
-
 MP_OWNER=local \
 CDK_DEFAULT_ACCOUNT=123456789012 \
 CDK_DEFAULT_REGION=us-east-1 \
-npx cdk synth --quiet
+npm run verify
+```
 
-npm run check:template
+`npm run verify` builds the Lambda package before testing and synthesis, which makes it safe on a clean checkout. The normal package build downloads the Python 3.12 manylinux x86_64 Pillow wheel. Use `python ../lambdas/validate/build_package.py --offline-local` only for an offline syntax/synthesis check on compatible Linux.
+
+From the repository root, CI also runs:
+
+```bash
+python3 scripts/validate_contracts.py
+python3 -m unittest discover -s lambdas/validate/tests -v
+python3 -m unittest discover -s scripts/tests -v
 ```
 
 ## AWS Academy deployment

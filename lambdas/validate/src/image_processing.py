@@ -115,7 +115,7 @@ def build_thumbnail(
             "IMAGE_DIMENSIONS_TOO_LARGE",
             "The decoded image dimensions are too large.",
         ) from None
-    except (UnidentifiedImageError, OSError, ValueError):
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
         raise PermanentValidationError(
             "INVALID_IMAGE",
             "The uploaded file is not a valid supported image.",

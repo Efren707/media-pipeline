@@ -61,6 +61,7 @@ Deploy a private media bucket and a placeholder-to-working Validate Lambda from 
 ## Progress log
 
 - 2026-10-13 Fahad: Local build, CDK tests, synth, and policy scan pass. Next: live sandbox deploy and smoke test.
+- 2026-10-13 review follow-up: Added ETag-bound downloads, a pre-output `VALIDATING` claim, conditional artifact/status writes, malformed-image handling, terminal-state protection, clean-checkout build ordering, and smoke-test polling coverage. Local regression suite is passing; live deploy remains next.
 
 ## Outcome notes
 

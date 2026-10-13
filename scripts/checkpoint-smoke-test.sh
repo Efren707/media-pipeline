@@ -53,10 +53,12 @@ for _ in $(seq 1 30); do
     --only-show-errors >/dev/null 2>&1; then
     STATE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["state"])' "$TEMP_DIRECTORY/status.json")"
     if [[ "$STATE" == "READY_FOR_ANALYSIS" ]]; then
-      aws s3api head-object --bucket "$BUCKET" --key "$THUMBNAIL_KEY" >/dev/null
-      aws s3api head-object --bucket "$BUCKET" --key "$MANIFEST_KEY" >/dev/null
-      echo "PASS: ${JOB_ID} reached READY_FOR_ANALYSIS and produced both outputs."
-      exit 0
+      if aws s3api head-object --bucket "$BUCKET" --key "$THUMBNAIL_KEY" >/dev/null 2>&1 \
+        && aws s3api head-object --bucket "$BUCKET" --key "$MANIFEST_KEY" >/dev/null 2>&1; then
+        echo "PASS: ${JOB_ID} reached READY_FOR_ANALYSIS and produced both outputs."
+        exit 0
+      fi
+      echo "Status is ready; waiting for generated artifacts..."
     fi
     if [[ "$STATE" == "FAILED" ]]; then
       echo "FAIL: validation rejected the upload:" >&2

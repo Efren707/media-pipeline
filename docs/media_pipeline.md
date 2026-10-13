@@ -75,7 +75,7 @@ The current status is stored at `status/{userId}/{jobId}.json`. The canonical ex
 | `ANALYZING` | Analyze Lambda | Tagging and moderation are running | `COMPLETE`, `FLAGGED`, `FAILED` |
 | `COMPLETE` | Analyze Lambda | Safe result is available | terminal |
 | `FLAGGED` | Analyze Lambda | Moderation policy requires review | terminal |
-| `FAILED` | Backend or Lambda | A permanent error occurred or watchdog timed out | terminal unless a new upload replaces the source key |
+| `FAILED` | Backend or Lambda | A permanent error occurred or watchdog timed out | terminal; retry with a new job ID |
 
 Every status includes `schemaVersion`, `jobId`, `userId`, `state`, `sourceKey`, `sourceETag`, `updatedAt`, and an optional safe `error`. Timestamps use UTC ISO 8601. Error objects contain a stable code and a user-safe message, never a stack trace.
 
@@ -89,9 +89,13 @@ The Validate Lambda performs these checks before decoding the entire object:
 4. Verify the decoded image and its true format; do not trust the filename or submitted content type.
 5. Accept JPEG, PNG, and WebP only, require the encoded format to match the key extension, and reject decompression-bomb-sized dimensions.
 6. Apply EXIF orientation, convert to RGB, and re-encode a JPEG thumbnail. This removes original metadata.
-7. Write the deterministic thumbnail, status, and analyze manifest keys.
+7. Create the deterministic thumbnail and Analyze manifest, then publish `READY_FOR_ANALYSIS` only after both artifacts exist.
 
-S3 events are delivered at least once. Before processing, the Lambda checks whether the same source ETag has already reached `READY_FOR_ANALYSIS` or a later state. Deterministic output keys make retries safe.
+S3 events are delivered at least once and may overlap. Validate compares the event ETag with the current object and downloads with `If-Match`, so a source change between metadata inspection and download causes a retry instead of mixing versions. Before publishing any derived artifact, it conditionally claims the job as `VALIDATING`. A missing status is created with `If-None-Match: *`; an existing `QUEUED` or `VALIDATING` status is updated with `If-Match`; later, terminal, or differently bound status is rejected.
+
+The thumbnail and manifest are also created with `If-None-Match: *`, so a duplicate cannot replace artifacts and no missing-object lookup or `s3:ListBucket` permission is required. The final status uses another conditional update, and later or terminal states are never moved backward.
+
+A `{userId, jobId}` identifies one immutable upload. Re-uploading or retrying with different source bytes requires a new job ID. Existing outputs record the source key and ETag so accidental job-ID reuse is rejected.
 
 Permanent input errors write `FAILED` and return successfully so AWS does not retry a bad file. Unexpected AWS or runtime errors are raised so asynchronous Lambda retry can run.
 
@@ -126,7 +130,7 @@ The API always derives the S3 user prefix from the authenticated account. A call
 
 - Permanent validation failures: write `FAILED` with `UNSUPPORTED_FORMAT`, `FILE_TOO_LARGE`, `INVALID_IMAGE`, or another stable code; do not retry.
 - Temporary AWS/runtime failures: raise the error and let asynchronous Lambda retry.
-- Duplicate events: detect the same ETag and skip work already completed.
+- Duplicate and overlapping events: use ETag-bound reads plus conditional writes; accept matching existing artifacts and never overwrite outputs or regress a later status.
 - Stuck jobs: the later Spring Boot watchdog marks jobs that have not changed within the configured time as `FAILED` with `PROCESSING_TIMEOUT`.
 - Operators diagnose unexpected failures with CloudWatch logs using the job ID.
 

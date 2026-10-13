@@ -71,10 +71,10 @@ The first secure AWS vertical slice is scaffolded:
 
 - TypeScript CDK creates a private encrypted media bucket and imports the existing Academy Lambda role.
 - An `uploads/` S3 event invokes the Python 3.12 Validate Lambda.
-- Validate checks key syntax, byte size, true image format and decoded dimensions, creates a metadata-free thumbnail, and writes status plus the next-stage manifest.
-- Duplicate S3 events are idempotent through source-ETag checks and deterministic output keys.
-- Unit tests cover valid, invalid, mislabeled-format, oversized, duplicate, untrusted-key, and unexpected-bucket paths.
-- CI type-checks, tests, synthesizes CDK, audits production Node dependencies, and rejects IAM-role or NAT-Gateway resources.
+- Validate checks key syntax, byte size, true image format and decoded dimensions, creates a metadata-free thumbnail, and writes the next-stage manifest before publishing the ready status.
+- Upload reads are bound to the event's source ETag, and conditional S3 writes make duplicate or concurrent events idempotent without requiring `s3:ListBucket`.
+- Sixteen Lambda tests cover valid, invalid, corrupt, mislabeled-format, oversized, duplicate, stale-event, terminal-state, job-reuse, concurrent-update, untrusted-key, and unexpected-bucket paths.
+- CI validates contracts and operational scripts, type-checks, tests, synthesizes CDK, audits production Node dependencies, and rejects IAM-role or NAT-Gateway resources.
 
 Live deployment still requires an active AWS Academy session. Follow [infra/README.md](infra/README.md), then record the smoke-test result in [the Phase 2 plan](docs/plans/02-infrastructure-foundation.md).
 

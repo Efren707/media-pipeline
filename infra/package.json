@@ -9,7 +9,7 @@
     "test": "jest --runInBand",
     "synth": "npm run build:lambda && cdk synth",
     "check:template": "node scripts/check-template.mjs",
-    "verify": "npm run build && npm test && npm run synth && npm run check:template"
+    "verify": "npm run build:lambda && npm run build && npm test && cdk synth --quiet && npm run check:template"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.220.0",
