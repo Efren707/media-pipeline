@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0",
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "READY_FOR_ANALYSIS",
+  "thumbnailUrl": "https://example.invalid/presigned-thumbnail-redacted",
+  "updatedAt": "2026-10-13T15:00:00Z",
+  "error": null
+}

@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: lambdas/validate/requirements-dev.txt
+
+      - name: Install Lambda test dependencies
+        run: python -m pip install -r lambdas/validate/requirements-dev.txt
+
+      - name: Validate shared contracts
+        run: python scripts/validate_contracts.py
+
+      - name: Test Validate Lambda
+        run: python -m unittest discover -s lambdas/validate/tests -v
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: infra/package-lock.json
+
+      - name: Install infrastructure dependencies
+        working-directory: infra
+        run: npm ci
+
+      - name: Audit production dependencies
+        working-directory: infra
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build local Lambda asset for synthesis
+        run: python lambdas/validate/build_package.py --offline-local
+
+      - name: Type-check and test CDK
+        working-directory: infra
+        run: npm run build && npm test
+
+      - name: Synthesize CDK without AWS credentials
+        working-directory: infra
+        env:
+          MP_OWNER: ci
+          CDK_DEFAULT_ACCOUNT: "123456789012"
+          CDK_DEFAULT_REGION: us-east-1
+        run: npx cdk synth --quiet
+
+      - name: Reject forbidden resources
+        working-directory: infra
+        run: npm run check:template

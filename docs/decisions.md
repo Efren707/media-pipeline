@@ -67,3 +67,13 @@ Most of D1–D8 come from the sandbox service tests in [SETUP.md §4](../SETUP.m
 - **Date:** 2026-09-30
 - **Why:** Each sandbox has a $20 budget. EC2 + RDS + ALB running 24/7 costs about $1.20/day. Costly resources run only during sessions, NAT Gateways are banned, and we use the smallest instance sizes.
 - **Alternatives:** leaving resources running (the budget would run out in ~2.5 weeks).
+
+### D13: User-scoped status keys and idempotent validation
+- **Date:** 2026-10-13
+- **Why:** `status/{userId}/{jobId}.json` lets the backend enforce per-user access consistently. S3 can deliver an event more than once, so Validate compares the source ETag and uses deterministic output keys before doing duplicate work.
+- **Alternatives:** global `status/{jobId}.json` keys (harder to reason about user isolation); random output keys (duplicates accumulate on retries).
+
+### D14: Keep the portfolio code; deploy paid resources on demand
+- **Date:** 2026-10-13
+- **Why:** The source, tests, and CDK are useful for resumes and continued learning. Automatic deletion after grading would remove that value. Guarded scripts can destroy deployed resources and demo data when desired without deleting the repository.
+- **Alternatives:** automatically delete the whole project after grading; leave every AWS resource running continuously.

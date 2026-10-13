@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "userId": "demo-user",
+  "state": "READY_FOR_ANALYSIS",
+  "sourceKey": "uploads/demo-user/550e8400-e29b-41d4-a716-446655440000.jpg",
+  "sourceETag": "d41d8cd98f00b204e9800998ecf8427e",
+  "thumbnailKey": "thumbnails/demo-user/550e8400-e29b-41d4-a716-446655440000.jpg",
+  "resultKey": null,
+  "updatedAt": "2026-10-13T15:00:00Z",
+  "error": null
+}

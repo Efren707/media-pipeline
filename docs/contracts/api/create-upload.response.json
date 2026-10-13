@@ -1,0 +1,12 @@
+{
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "QUEUED",
+  "upload": {
+    "method": "PUT",
+    "url": "https://example.invalid/presigned-url-redacted",
+    "expiresInSeconds": 300,
+    "requiredHeaders": {
+      "Content-Type": "image/jpeg"
+    }
+  }
+}

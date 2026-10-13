@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "jobId": "550e8400-e29b-41d4-a716-446655440000",
+  "userId": "demo-user",
+  "sourceKey": "uploads/demo-user/550e8400-e29b-41d4-a716-446655440000.jpg",
+  "thumbnailKey": "thumbnails/demo-user/550e8400-e29b-41d4-a716-446655440000.jpg",
+  "modelVersion": "pending-selection",
+  "labels": [
+    {
+      "name": "example-label",
+      "confidence": 0.91
+    }
+  ],
+  "moderation": {
+    "verdict": "SAFE",
+    "confidence": 0.97,
+    "categories": []
+  },
+  "completedAt": "2026-10-13T15:00:05Z"
+}

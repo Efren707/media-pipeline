@@ -6,17 +6,17 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 > Update this at the end of every work session (`/wrap-up`). Read it first when starting one (`/start-session`). **Edit only your own block**, so parallel branches merge without conflicts.
 
-**Active phase:** 0, Repo & collaboration setup → next up: Phase 1, Design finalization
+**Active phase:** 1, Design finalization → M2 secure vertical-slice scaffold in progress
 
 #### Efren (updated 2026-09-30)
 - **Working on:** GitHub repo setup (public repo, branch protection, milestones, invite)
 - **Next:** draft `docs/plans/01-design-finalization.md` in a PR
 - **Blockers:** none
 
-#### Fahad (updated n/a)
-- **Working on:** accept the GitHub invite; complete [SETUP.md](SETUP.md) §1–3, including the role check
-- **Next:** review the Phase 1 plan PR
-- **Blockers:** none
+#### Fahad (updated 2026-10-13)
+- **Working on:** secure M2 vertical slice: contracts, TypeScript CDK, and Validate Lambda
+- **Next:** verify the AWS role check, deploy in the sandbox, and open the scaffold PR for Efren's review
+- **Blockers:** AWS deployment must be run during an active Academy lab session
 
 ---
 
@@ -41,9 +41,9 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | # | Phase | Milestone | Target | Owner | Status | Plan |
 |---|---|---|---|---|---|---|
 | 0 | [Repo & collaboration setup](#0-repo--collaboration-setup) | M1 | Oct 3 | Efren | 🔨 | n/a |
-| 1 | [Design finalization](#1-design-finalization) | M1 | Oct 5 | Both | ⬜ | n/a |
+| 1 | [Design finalization](#1-design-finalization) | M1 | Oct 5 | Both | 📝 | [plan](docs/plans/01-design-finalization.md) |
 | 🏁 | **M1 Foundation** | | **Oct 5** | | | |
-| 2 | [Infrastructure foundation (CDK)](#2-infrastructure-foundation-cdk) | M2 | Oct 9 | TBD | ⬜ | n/a |
+| 2 | [Infrastructure foundation (CDK)](#2-infrastructure-foundation-cdk) | M2 | Oct 9 | Fahad | 🔨 | [plan](docs/plans/02-infrastructure-foundation.md) |
 | 3 | [Upload flow](#3-upload-flow) | M2 | Oct 12 | TBD | ⬜ | n/a |
 | 4 | [Validate stage](#4-validate-stage) | M2 | Oct 16 | TBD | ⬜ | n/a |
 | 🏁 | **M2 Checkpoint**: upload → validate → thumbnail + status | | **Oct 19** | | | |
