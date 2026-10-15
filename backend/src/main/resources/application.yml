@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: media-pipeline-backend
+
+mp:
+  # Stack output MediaBucketName, e.g. mp-<owner>-media-<accountId>. Never hardcode it.
+  media-bucket: ${MP_MEDIA_BUCKET:}
+  aws-region: ${AWS_REGION:us-east-1}
+  # Phase 3 has no login yet; every request acts as this user (replaced by JWT in Phase 7).
+  demo-user-id: ${MP_DEMO_USER:demo-user}
+  presign-ttl: 5m
+  # Must match MAX_IMAGE_BYTES in the Validate Lambda.
+  max-upload-bytes: 10485760

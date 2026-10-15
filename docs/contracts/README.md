@@ -8,6 +8,7 @@ The example files were defined in **Phase 1 (Design finalization)**:
 |---|---|---|
 | `status.example.json` | Lambdas (every stage), backend (`QUEUED`, watchdog) | Backend status API, Lambda tests |
 | `result.example.json` | Analyze Lambda | Backend (gallery, search indexing), SNS email trigger |
+| `api/create-upload.request.json` | React upload client | Spring Boot upload endpoint |
 | `api/create-upload.response.json` | Spring Boot upload endpoint | React upload client and backend tests |
 | `api/job-status.response.json` | Spring Boot status endpoint | React polling client and backend tests |
 

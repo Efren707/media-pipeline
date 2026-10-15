@@ -1,10 +1,24 @@
 # frontend/
 
-React app.
+React + TypeScript (Vite). Runs locally during M2; moves to S3 + CloudFront in Phase 10.
 
-Planned responsibilities:
-- Drag-and-drop upload straight to S3 using a presigned URL
-- Live status per upload (Queued → Validating → Analyzing → Complete/Failed)
-- Searchable gallery of thumbnails and detected labels
+The upload page asks the backend for a presigned URL (`POST /api/uploads`), PUTs the file straight to S3, then polls `GET /api/jobs/{jobId}` until the job settles and shows the thumbnail.
 
-Not scaffolded yet. We'll generate it with Vite once the design in [../docs/media_pipeline.md](../docs/media_pipeline.md) is final.
+## Run locally
+
+Start the backend first (see [../backend/README.md](../backend/README.md)), then:
+
+```bash
+npm install
+npm run dev        # http://localhost:5173, proxies /api to localhost:8080
+```
+
+Port 5173 must stay in `MP_CORS_ORIGINS` (bucket CORS), because the browser uploads to S3 directly.
+
+## Develop
+
+```bash
+npm run lint           # oxlint
+npm run format         # Prettier
+npm run build          # type-check + production build (what CI runs, with lint and format:check)
+```

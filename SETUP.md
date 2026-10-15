@@ -177,7 +177,7 @@ We can't create IAM roles, and default CDK creates them in several places. Follo
   - **Lambdas:** pytest for the logic (validation, status transitions, result format), using the `docs/contracts/` examples
   - **Backend:** Spring Boot tests for the endpoints touched
   - **Frontend:** `npm run build` succeeds
-- Formatters/linters are clean (Ruff, Spotless, Prettier + ESLint, once each area is scaffolded).
+- Formatters/linters are clean (Ruff, Spotless, Prettier + oxlint, once each area is scaffolded).
 - CI is green. GitHub Actions runs linters, unit tests and the `cdk synth` IAM-role check on every PR, and never deploys.
 - The phase plan's demo steps work in your own sandbox, when the PR touches AWS resources.
 - Docs are updated if behavior, setup or contracts changed.

@@ -78,6 +78,11 @@ def main() -> None:
     if result["jobId"] != status["jobId"] or result["userId"] != status["userId"]:
         raise AssertionError("status and result examples must describe the same sample job")
 
+    create_request = load("api/create-upload.request.json")
+    require(create_request, {"contentType", "sizeBytes"}, "api/create-upload.request.json")
+    if create_request["contentType"] not in {"image/jpeg", "image/png", "image/webp"}:
+        raise AssertionError("upload request example must use a supported image type")
+
     create_upload = load("api/create-upload.response.json")
     require(create_upload, {"jobId", "state", "upload"}, "api/create-upload.response.json")
     if create_upload["state"] != "QUEUED" or create_upload["upload"]["expiresInSeconds"] > 300:
@@ -92,7 +97,7 @@ def main() -> None:
     if job_status["state"] not in ALLOWED_STATES:
         raise AssertionError("job-status response contains an unknown state")
 
-    print("Validated 4 JSON contract examples.")
+    print("Validated 5 JSON contract examples.")
 
 
 if __name__ == "__main__":

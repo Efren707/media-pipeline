@@ -1,0 +1,154 @@
+:root {
+  --bg: #ffffff;
+  --fg: #1d1d1f;
+  --muted: #6b6b70;
+  --border: #d9d9de;
+  --accent: #2563eb;
+  --ok: #15803d;
+  --danger: #b91c1c;
+  --surface: #f6f6f8;
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  line-height: 1.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --fg: #ececf1;
+    --muted: #9a9aa3;
+    --border: #34343c;
+    --accent: #60a5fa;
+    --ok: #4ade80;
+    --danger: #f87171;
+    --surface: #202026;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+h1 {
+  margin: 0 0 4px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--danger);
+  margin: 8px 0 0;
+}
+
+.upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+button {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.jobs {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.job {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.job-failed {
+  border-color: var(--danger);
+}
+
+.thumb {
+  flex: none;
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.details code {
+  font-size: 0.8em;
+  overflow-wrap: anywhere;
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+}
+
+.steps li::before {
+  content: '○ ';
+}
+
+.steps li.done {
+  color: var(--ok);
+}
+
+.steps li.done::before {
+  content: '● ';
+}

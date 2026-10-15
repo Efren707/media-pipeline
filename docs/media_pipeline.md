@@ -112,7 +112,11 @@ Planned endpoints:
 | `GET /api/jobs` | List the authenticated user's jobs |
 | `GET /api/gallery` | Return completed results and short-lived thumbnail URLs |
 
-The API always derives the S3 user prefix from the authenticated account. A caller cannot choose another user's prefix. Example responses are in [`contracts/api/`](contracts/api/).
+The API always derives the S3 user prefix from the authenticated account. A caller cannot choose another user's prefix. Example requests and responses are in [`contracts/api/`](contracts/api/).
+
+`POST /api/uploads` takes `{contentType, sizeBytes}` ([`create-upload.request.json`](contracts/api/create-upload.request.json)). It rejects types other than JPEG, PNG and WebP (`UNSUPPORTED_FORMAT`) and sizes over 10 MiB (`FILE_TOO_LARGE`) before writing anything. It then writes `QUEUED` with `If-None-Match: *` and `sourceETag: null`, and only after that signs the PUT. `Content-Type` and `Content-Length` are part of the signature, so the browser must upload exactly the approved type and size. The status response leaves out `userId`, `sourceKey` and `sourceETag`. Errors use `{"error": {"code", "message"}}`, and an unknown or malformed job ID returns `404 JOB_NOT_FOUND`.
+
+Until Phase 7 adds login, the backend acts as one configured demo user.
 
 ## 8. Security design
 

@@ -6,12 +6,12 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 > Update this at the end of every work session (`/wrap-up`). Read it first when starting one (`/start-session`). **Edit only your own block**, so parallel branches merge without conflicts.
 
-**Active phase:** 2, Infrastructure foundation (live in Efren's sandbox) → next: Phase 3, Upload flow
+**Active phase:** 3, Upload flow (built; waiting on CI and review) → next: Phase 4, Validate stage
 
 #### Efren (updated 2026-10-14)
-- **Working on:** Phase 2 deployed and smoke-tested in my sandbox (upload → validate → thumbnail + status works on AWS)
-- **Next:** plan and start Phase 3, Upload flow (Spring Boot presigned-URL endpoint + minimal React upload page)
-- **Blockers:** none
+- **Working on:** Phase 3 done locally. Backend (`POST /api/uploads`, `GET /api/jobs/{id}`) and React upload page tested end to end against my sandbox; PR on `feat/backend-upload-flow`
+- **Next:** get CI green and the PR reviewed; Phase 4 is mostly covered by Fahad's Validate Lambda, so agree what's left (live invalid-file test, Ruff in CI) and prep the Oct 19 demo
+- **Blockers:** merges wait on Fahad's review
 
 #### Fahad (updated 2026-10-13)
 - **Working on:** secure M2 vertical slice: contracts, TypeScript CDK, and Validate Lambda
@@ -44,7 +44,7 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | 1 | [Design finalization](#1-design-finalization) | M1 | Oct 5 | Both | ✅ | [plan](docs/plans/01-design-finalization.md) |
 | 🏁 | **M1 Foundation** | | **Oct 5** | | | |
 | 2 | [Infrastructure foundation (CDK)](#2-infrastructure-foundation-cdk) | M2 | Oct 9 | Fahad | 🔨 | [plan](docs/plans/02-infrastructure-foundation.md) |
-| 3 | [Upload flow](#3-upload-flow) | M2 | Oct 12 | TBD | ⬜ | n/a |
+| 3 | [Upload flow](#3-upload-flow) | M2 | Oct 17 | Efren | 🔨 | [plan](docs/plans/03-upload-flow.md) |
 | 4 | [Validate stage](#4-validate-stage) | M2 | Oct 16 | Fahad | 🔨 | [plan](docs/plans/04-validate-stage.md) |
 | 🏁 | **M2 Checkpoint**: upload → validate → thumbnail + status | | **Oct 19** | | | |
 | 5 | [Analyze stage (AI)](#5-analyze-stage-ai) | M3 | Oct 26 | TBD | ⬜ | n/a |
@@ -134,7 +134,7 @@ Record significant design choices in [`docs/decisions.md`](docs/decisions.md).
 - Spring Boot project skeleton with a presigned-URL endpoint
 - React project skeleton with a simple upload page
 - The job gets an ID and an initial `Queued` status
-- Formatters (Spotless, Prettier + ESLint), Maven wrapper; backend tests + frontend build added to CI
+- Formatters (Spotless, Prettier + oxlint), Maven wrapper; backend tests + frontend build added to CI
 
 **Depends on:** 1 (2 for a real bucket)
 **Done when:** uploading from the React page creates `uploads/{user}/{job}.jpg` and a `Queued` status.
