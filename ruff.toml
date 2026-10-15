@@ -1,0 +1,8 @@
+# Python lint + format for lambdas/ and scripts/. CI runs `ruff check` and `ruff format --check`.
+target-version = "py312"
+line-length = 100
+extend-exclude = ["**/dist", "**/build"]
+
+[lint]
+# pycodestyle errors, pyflakes, import sorting, bugbear, pyupgrade
+select = ["E", "F", "I", "B", "UP"]

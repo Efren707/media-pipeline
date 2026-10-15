@@ -12,7 +12,6 @@ from urllib.parse import unquote_plus
 
 from image_processing import PermanentValidationError, build_thumbnail
 
-
 LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.INFO)
 
@@ -141,9 +140,7 @@ def _put_json(
     return _normalize_etag(response.get("ETag"))
 
 
-def _read_existing_json(
-    client: Any, bucket: str, key: str
-) -> tuple[dict[str, Any], str]:
+def _read_existing_json(client: Any, bucket: str, key: str) -> tuple[dict[str, Any], str]:
     response = client.get_object(
         Bucket=bucket,
         Key=key,
@@ -284,14 +281,10 @@ def _write_final_status(
         existing_source_key = str(existing.get("sourceKey") or "")
         existing_source_etag = _normalize_etag(existing.get("sourceETag"))
         if existing_source_key and existing_source_key != source_key:
-            LOGGER.warning(
-                json.dumps({"event": "job_key_reused", "jobId": job_id})
-            )
+            LOGGER.warning(json.dumps({"event": "job_key_reused", "jobId": job_id}))
             return False
         if existing_source_etag and existing_source_etag != source_etag:
-            LOGGER.warning(
-                json.dumps({"event": "job_etag_changed", "jobId": job_id})
-            )
+            LOGGER.warning(json.dumps({"event": "job_etag_changed", "jobId": job_id}))
             return False
         if existing.get("state") not in TRANSITIONABLE_STATES:
             return False
@@ -540,9 +533,7 @@ def _process_record(client: Any, record: dict[str, Any]) -> str:
             error={"code": error.code, "message": error.public_message},
         )
         LOGGER.info(
-            json.dumps(
-                {"event": "validation_rejected", "jobId": job_id, "code": error.code}
-            )
+            json.dumps({"event": "validation_rejected", "jobId": job_id, "code": error.code})
         )
         return "failed" if status_changed else "skipped"
 
