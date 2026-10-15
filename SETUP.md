@@ -165,7 +165,7 @@ We can't create IAM roles, and default CDK creates them in several places. Follo
 - **`main` is always deployable.** All work goes through branches and pull requests.
 - **Branch names:** `feat/<area>-<desc>`, `fix/<area>-<desc>`, `docs/<desc>`, where area is `backend`, `frontend`, `lambdas`, `infra` or `docs`. Example: `feat/lambdas-validate-thumbnail`.
 - **Commits:** use Conventional Commit prefixes: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`.
-- **Pull requests:** fill in the PR template, request your partner's review, and **squash merge** after approval. Branch protection requires 1 approval for every PR, including docs.
+- **Pull requests:** fill in the PR template and **squash merge** yourself once CI is green. Branch protection requires a PR for every change to `main` but no approval (D17); ask your partner for a review when you want a second pair of eyes.
 - **Async by default:** there are no fixed meetings. Planning sessions are PRs (see [ROADMAP.md](ROADMAP.md#how-each-phase-works)). Aim to review PRs within about 2 days, and flag blockers in chat right away.
 - **Stay in sync:** `git pull --rebase origin main` before you start and before you open a PR.
 - **Contracts:** changes to `docs/contracts/` must update the design doc in the same PR (see [docs/contracts/README.md](docs/contracts/README.md)).

@@ -53,7 +53,7 @@ A user picks an image in the browser and it reaches S3 through a presigned URL. 
 - [x] A non-image or oversized file is refused by the API with a clear message, and never gets a URL
 - [x] A file that passes the API check but isn't a real image ends as `FAILED` with a safe reason shown on the page
 - [x] Responses match the examples in `docs/contracts/api/`. The client never sees `userId`, `sourceKey` or `sourceETag`
-- [ ] Backend tests, Spotless, frontend lint and build pass in CI
+- [x] Backend tests, Spotless, frontend lint and build pass in CI
 
 ## Test / demo steps
 
@@ -74,5 +74,6 @@ If port 8080 is taken, run the backend with `SERVER_PORT=8081` and the frontend 
 
 - 2026-10-14 Efren: Plan drafted. Built the backend (2 endpoints, 12 tests) and the frontend upload page; added both CI jobs and the request contract. Tested live against the sandbox through the API: a valid JPEG went `QUEUED` → `READY_FOR_ANALYSIS` with a thumbnail URL, a fake `.jpg` ended as `FAILED`/`UNSUPPORTED_FORMAT`, a mismatched size got a 403 from S3, and the CORS preflight from `localhost:5173` passed. Efren checked the React page in a browser and it works. Next: confirm CI is green after the push.
 - 2026-10-14 Efren: Wrap-up. Phase 3 code is finished and pushed on `feat/backend-upload-flow`; the only open item is CI going green. Chose oxlint (D16). Next: open the PR, get it green, then move to Phase 4.
+- 2026-10-15 Efren: PR #11 rebased onto main (ROADMAP conflict only), CI green, merged. Phase closed.
 
 ## Outcome notes
