@@ -11,7 +11,6 @@ from unittest.mock import patch
 
 from PIL import Image
 
-
 SOURCE = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SOURCE))
 
@@ -99,9 +98,7 @@ class FakeS3:
         if kwargs.get("IfNoneMatch") == "*" and existing is not None:
             raise S3ClientError("PreconditionFailed")
         if_match = kwargs.get("IfMatch")
-        if if_match and (
-            existing is None or if_match.strip('"') != existing["ETag"]
-        ):
+        if if_match and (existing is None or if_match.strip('"') != existing["ETag"]):
             raise S3ClientError("PreconditionFailed")
         etag = hashlib.md5(Body, usedforsecurity=False).hexdigest()
         self.objects[(Bucket, Key)] = {
@@ -183,7 +180,9 @@ class ValidateHandlerTests(unittest.TestCase):
         self.assertIn((self.bucket, self.thumbnail_key), self.s3.objects)
         self.assertIn((self.bucket, self.manifest_key), self.s3.objects)
         self.assertEqual(self._status()["state"], "READY_FOR_ANALYSIS")
-        with Image.open(BytesIO(self.s3.objects[(self.bucket, self.thumbnail_key)]["Body"])) as thumb:
+        with Image.open(
+            BytesIO(self.s3.objects[(self.bucket, self.thumbnail_key)]["Body"])
+        ) as thumb:
             self.assertEqual(thumb.format, "JPEG")
             self.assertLessEqual(max(thumb.size), 320)
 
@@ -196,8 +195,7 @@ class ValidateHandlerTests(unittest.TestCase):
             index
             for index, call in enumerate(self.s3.put_calls)
             if call["Key"] == self.status_key
-            and json.loads(call["Body"].decode("utf-8"))["state"]
-            == "READY_FOR_ANALYSIS"
+            and json.loads(call["Body"].decode("utf-8"))["state"] == "READY_FOR_ANALYSIS"
         )
         validating_index = next(
             index
@@ -236,9 +234,7 @@ class ValidateHandlerTests(unittest.TestCase):
         )
         self.assertNotEqual(current_etag, "stale-event-etag")
 
-        result = validate_handler.handler(
-            event(self.bucket, self.key, "stale-event-etag"), None
-        )
+        result = validate_handler.handler(event(self.bucket, self.key, "stale-event-etag"), None)
 
         self.assertEqual(result, {"processed": 0, "failed": 0, "skipped": 1})
         self.assertNotIn((self.bucket, self.thumbnail_key), self.s3.objects)
@@ -260,9 +256,7 @@ class ValidateHandlerTests(unittest.TestCase):
         with self.assertRaises(S3ClientError) as raised:
             validate_handler.handler(event(self.bucket, self.key, original_etag), None)
 
-        self.assertEqual(
-            raised.exception.response["Error"]["Code"], "PreconditionFailed"
-        )
+        self.assertEqual(raised.exception.response["Error"]["Code"], "PreconditionFailed")
         self.assertNotIn((self.bucket, self.manifest_key), self.s3.objects)
 
     def test_corrupted_png_is_failed_as_invalid_image(self) -> None:
@@ -311,9 +305,7 @@ class ValidateHandlerTests(unittest.TestCase):
             validate_handler.handler(event(self.bucket, self.key, etag), None)
 
         self.assertEqual(self._status()["state"], "COMPLETE")
-        self.assertEqual(
-            self._status()["resultKey"], "results/demo-user/result.json"
-        )
+        self.assertEqual(self._status()["resultKey"], "results/demo-user/result.json")
 
     def test_reusing_job_id_does_not_replace_existing_artifacts(self) -> None:
         first_etag = self.s3.seed(self.bucket, self.key, image_bytes(), "image/png")
@@ -351,9 +343,7 @@ class ValidateHandlerTests(unittest.TestCase):
             b"not really an image",
             "image/png",
         )
-        first_result = validate_handler.handler(
-            event(self.bucket, self.key, first_etag), None
-        )
+        first_result = validate_handler.handler(event(self.bucket, self.key, first_etag), None)
         original_status = self.s3.objects[(self.bucket, self.status_key)]["Body"]
         self.assertEqual(first_result, {"processed": 0, "failed": 1, "skipped": 0})
 
@@ -363,9 +353,7 @@ class ValidateHandlerTests(unittest.TestCase):
             image_bytes(),
             "image/png",
         )
-        second_result = validate_handler.handler(
-            event(self.bucket, self.key, second_etag), None
-        )
+        second_result = validate_handler.handler(event(self.bucket, self.key, second_etag), None)
 
         self.assertEqual(second_result, {"processed": 0, "failed": 0, "skipped": 1})
         self.assertNotIn((self.bucket, self.thumbnail_key), self.s3.objects)

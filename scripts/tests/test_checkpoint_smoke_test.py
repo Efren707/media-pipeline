@@ -6,7 +6,6 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 SMOKE_SCRIPT = ROOT / "scripts" / "checkpoint-smoke-test.sh"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"

@@ -45,7 +45,7 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | 🏁 | **M1 Foundation** | | **Oct 5** | | | |
 | 2 | [Infrastructure foundation (CDK)](#2-infrastructure-foundation-cdk) | M2 | Oct 9 | Fahad | 🔨 | [plan](docs/plans/02-infrastructure-foundation.md) |
 | 3 | [Upload flow](#3-upload-flow) | M2 | Oct 12 | TBD | ⬜ | n/a |
-| 4 | [Validate stage](#4-validate-stage) | M2 | Oct 16 | TBD | ⬜ | n/a |
+| 4 | [Validate stage](#4-validate-stage) | M2 | Oct 16 | Fahad | 🔨 | [plan](docs/plans/04-validate-stage.md) |
 | 🏁 | **M2 Checkpoint**: upload → validate → thumbnail + status | | **Oct 19** | | | |
 | 5 | [Analyze stage (AI)](#5-analyze-stage-ai) | M3 | Oct 26 | TBD | ⬜ | n/a |
 | 6 | [Failure handling & retries](#6-failure-handling--retries) | M3 | Oct 29 | TBD | ⬜ | n/a |

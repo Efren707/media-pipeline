@@ -8,7 +8,6 @@ from io import BytesIO
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
-
 ALLOWED_FORMATS = frozenset({"JPEG", "PNG", "WEBP"})
 
 

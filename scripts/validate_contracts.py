@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 from uuid import UUID
 
-
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = ROOT / "docs" / "contracts"
 ALLOWED_STATES = {
