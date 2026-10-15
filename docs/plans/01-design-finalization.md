@@ -37,8 +37,8 @@ Replace the original unsupported architecture with one that deploys in the verif
 - [x] Reconcile `docs/media_pipeline.md` with sandbox findings (Fahad)
 - [x] Define S3 keys and status transitions (Fahad)
 - [x] Add status, result, and API response examples (Fahad)
-- [ ] Review and approve the design PR (Efren)
-- [ ] Record any review changes in `docs/decisions.md` (both)
+- [x] Review and approve the design PR (Efren)
+- [x] Record any review changes in `docs/decisions.md` (both)
 
 ## Acceptance criteria
 
@@ -47,7 +47,7 @@ Replace the original unsupported architecture with one that deploys in the verif
 - [x] Status transitions and safe failure codes are documented
 - [x] Security controls are part of the design, not deferred
 - [x] Example JSON files are valid and agree with the design
-- [ ] Both partners approve and merge the PR
+- [x] Both partners approve and merge the PR
 
 ## Test / demo steps
 
@@ -63,7 +63,8 @@ Replace the original unsupported architecture with one that deploys in the verif
 ## Progress log
 
 - 2026-10-13 Fahad: Reconciled the architecture, defined contracts, and prepared the secure M2 vertical-slice scaffold. Next: Efren review and sandbox deployment.
+- 2026-10-14 Efren: Approved and merged PR #1; review follow-ups are recorded as D13–D15. Phase closed.
 
 ## Outcome notes
 
-Awaiting partner approval. The original proposal remains useful as the problem statement; its initial AWS service choices were replaced by the verified sandbox-compatible design.
+Approved and merged in PR #1 on 2026-10-13. Review changes are recorded in `docs/decisions.md` (D13–D15). The ONNX model choice and RDS questions above carry over to Phases 5 and 7. The original proposal remains useful as the problem statement; its initial AWS service choices were replaced by the verified sandbox-compatible design.

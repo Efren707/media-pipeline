@@ -37,7 +37,7 @@ Deploy a private media bucket and a placeholder-to-working Validate Lambda from 
 - [x] Add CDK assertions and forbidden-resource scan
 - [x] Add deployment, smoke-test, and guarded teardown scripts
 - [ ] Deploy into Fahad's active Academy sandbox and run smoke test
-- [ ] Deploy into Efren's active Academy sandbox and run smoke test
+- [x] Deploy into Efren's active Academy sandbox and run smoke test
 
 ## Acceptance criteria
 
@@ -45,7 +45,7 @@ Deploy a private media bucket and a placeholder-to-working Validate Lambda from 
 - [x] CDK assertion tests pass
 - [x] Synthesized template contains no `AWS::IAM::Role` or NAT Gateway
 - [ ] `cdk deploy` succeeds in both sandboxes
-- [ ] Uploading one valid test image invokes the Lambda
+- [x] Uploading one valid test image invokes the Lambda
 
 ## Test / demo steps
 
@@ -56,13 +56,14 @@ Deploy a private media bucket and a placeholder-to-working Validate Lambda from 
 
 ## Open questions
 
-- Do both Academy accounts permit the explicit TLS-only S3 bucket policy?
+- Do both Academy accounts permit the explicit TLS-only S3 bucket policy? (Efren's: yes, 2026-10-14. Fahad's: not yet tested.)
 
 ## Progress log
 
 - 2026-10-13 Fahad: Local build, CDK tests, synth, and policy scan pass. Next: live sandbox deploy and smoke test.
 - 2026-10-13 review follow-up: Added ETag-bound downloads, a pre-output `VALIDATING` claim, conditional artifact/status writes, malformed-image handling, terminal-state protection, clean-checkout build ordering, and smoke-test polling coverage. Local regression suite is passing; live deploy remains next.
+- 2026-10-14 Efren: First live deploy. `deploy-checkpoint.sh` succeeded in Efren's sandbox (`MediaPipeline-efren`, about 78 s, bucket policy accepted). The smoke test passed with a 1.4 MB PNG: the job reached `READY_FOR_ANALYSIS`, with the status JSON, a 320 px JPEG thumbnail and the Analyze manifest all written. Next: Fahad's sandbox deploy.
 
 ## Outcome notes
 
-Local verification is complete. Live AWS verification requires an active Academy session and temporary credentials.
+Local verification is complete. Live verification passed in Efren's sandbox on 2026-10-14. Fahad's sandbox deploy is still needed to close the phase.
