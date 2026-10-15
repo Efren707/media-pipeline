@@ -44,7 +44,7 @@ We deploy into an **AWS Academy sandbox with read-only IAM**. Code that breaks t
 This repo is **public**. Never write credentials, AWS account IDs, lab user IDs or personal emails into any file. Real values go in the untracked `.env`.
 
 ## Conventions
-- Branches: `feat|fix|docs/<area>-<desc>`. Conventional Commit messages. Never push to `main`; every PR needs the partner's approval.
+- Branches: `feat|fix|docs/<area>-<desc>`. Conventional Commit messages. Never push to `main`; open a PR and self-merge once CI is green (partner review optional, see D17).
 - Contracts: changing anything in `docs/contracts/` means updating `docs/media_pipeline.md` in the same PR.
 - Definition of done: SETUP.md §6 (tests for the area, linters clean, CI green, docs updated).
 - Keep the UI simple and functional. Put the effort into the pipeline and AWS pieces.

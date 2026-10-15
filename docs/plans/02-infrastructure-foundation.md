@@ -63,6 +63,7 @@ Deploy a private media bucket and a placeholder-to-working Validate Lambda from 
 - 2026-10-13 Fahad: Local build, CDK tests, synth, and policy scan pass. Next: live sandbox deploy and smoke test.
 - 2026-10-13 review follow-up: Added ETag-bound downloads, a pre-output `VALIDATING` claim, conditional artifact/status writes, malformed-image handling, terminal-state protection, clean-checkout build ordering, and smoke-test polling coverage. Local regression suite is passing; live deploy remains next.
 - 2026-10-14 Efren: First live deploy. `deploy-checkpoint.sh` succeeded in Efren's sandbox (`MediaPipeline-efren`, about 78 s, bucket policy accepted). The smoke test passed with a 1.4 MB PNG: the job reached `READY_FOR_ANALYSIS`, with the status JSON, a 320 px JPEG thumbnail and the Analyze manifest all written. Next: Fahad's sandbox deploy.
+- 2026-10-15 Efren: Phase marked ✅ in ROADMAP; the stack is live and used by Phases 3–4. Fahad's sandbox deploy is still open and gets done the next time he runs a lab session.
 
 ## Outcome notes
 

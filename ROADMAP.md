@@ -6,12 +6,12 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 > Update this at the end of every work session (`/wrap-up`). Read it first when starting one (`/start-session`). **Edit only your own block**, so parallel branches merge without conflicts.
 
-**Active phase:** 3, Upload flow (built; waiting on CI and review) → next: Phase 4, Validate stage
+**Active phase:** M2 Checkpoint (Phases 2–4 built and merged) → next: midpoint presentation + demo, then Phase 5, Analyze stage
 
-#### Efren (updated 2026-10-14)
-- **Working on:** Phase 3 done locally. Backend (`POST /api/uploads`, `GET /api/jobs/{id}`) and React upload page tested end to end against my sandbox; PR on `feat/backend-upload-flow`
-- **Next:** get CI green and the PR reviewed; Phase 4 is mostly covered by Fahad's Validate Lambda, so agree what's left (live invalid-file test, Ruff in CI) and prep the Oct 19 demo
-- **Blockers:** merges wait on Fahad's review
+#### Efren (updated 2026-10-15)
+- **Working on:** merged #10–#12 (upload flow, Ruff); Phases 3 and 4 closed. Dropped the required PR approval (D17)
+- **Next:** midpoint presentation content and demo video for the Oct 19 checkpoint
+- **Blockers:** none
 
 #### Fahad (updated 2026-10-13)
 - **Working on:** secure M2 vertical slice: contracts, TypeScript CDK, and Validate Lambda
@@ -40,12 +40,12 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 
 | # | Phase | Milestone | Target | Owner | Status | Plan |
 |---|---|---|---|---|---|---|
-| 0 | [Repo & collaboration setup](#0-repo--collaboration-setup) | M1 | Oct 3 | Efren | 🔨 | n/a |
+| 0 | [Repo & collaboration setup](#0-repo--collaboration-setup) | M1 | Oct 3 | Efren | ✅ | n/a |
 | 1 | [Design finalization](#1-design-finalization) | M1 | Oct 5 | Both | ✅ | [plan](docs/plans/01-design-finalization.md) |
 | 🏁 | **M1 Foundation** | | **Oct 5** | | | |
-| 2 | [Infrastructure foundation (CDK)](#2-infrastructure-foundation-cdk) | M2 | Oct 9 | Fahad | 🔨 | [plan](docs/plans/02-infrastructure-foundation.md) |
-| 3 | [Upload flow](#3-upload-flow) | M2 | Oct 17 | Efren | 🔨 | [plan](docs/plans/03-upload-flow.md) |
-| 4 | [Validate stage](#4-validate-stage) | M2 | Oct 16 | Fahad | 🔨 | [plan](docs/plans/04-validate-stage.md) |
+| 2 | [Infrastructure foundation (CDK)](#2-infrastructure-foundation-cdk) | M2 | Oct 9 | Fahad | ✅ | [plan](docs/plans/02-infrastructure-foundation.md) |
+| 3 | [Upload flow](#3-upload-flow) | M2 | Oct 17 | Efren | ✅ | [plan](docs/plans/03-upload-flow.md) |
+| 4 | [Validate stage](#4-validate-stage) | M2 | Oct 16 | Fahad | ✅ | [plan](docs/plans/04-validate-stage.md) |
 | 🏁 | **M2 Checkpoint**: upload → validate → thumbnail + status | | **Oct 19** | | | |
 | 5 | [Analyze stage (AI)](#5-analyze-stage-ai) | M3 | Oct 26 | TBD | ⬜ | n/a |
 | 6 | [Failure handling & retries](#6-failure-handling--retries) | M3 | Oct 29 | TBD | ⬜ | n/a |
@@ -87,7 +87,7 @@ We're building the **full scope** described in the phases below. If we miss a mi
 We work **async**, with no fixed meetings. A planning session is a pull request.
 
 1. **Plan:** the phase owner copies [`docs/plans/_template.md`](docs/plans/_template.md) to `docs/plans/NN-short-name.md`, fills it in, links it above, sets status to 📝 and opens a PR. The partner reviews and comments. **Merging the PR means the plan is approved.**
-2. **Build:** set status to 🔨. Work on `feat/...` branches and open PRs that the partner reviews (see [SETUP.md §6](SETUP.md#6-collaboration-workflow)). Add a line to the plan's Progress log each session.
+2. **Build:** set status to 🔨. Work on `feat/...` branches and open PRs, self-merged once CI is green (see [SETUP.md §6](SETUP.md#6-collaboration-workflow)). Add a line to the plan's Progress log each session.
 3. **Close:** check the "Done when" criteria, fill in the plan's Outcome notes and set status to ✅.
 
 Record significant design choices in [`docs/decisions.md`](docs/decisions.md).

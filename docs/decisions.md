@@ -89,3 +89,9 @@ Most of D1–D8 come from the sandbox service tests in [SETUP.md §4](../SETUP.m
 - **Replaces:** "Prettier + ESLint" for the frontend in SETUP §6 and ROADMAP Phase 3.
 - **Why:** The current Vite React template comes with oxlint already configured. It covers the React hook rules we need with no extra setup and runs much faster. Prettier still handles formatting.
 - **Alternatives:** add ESLint and its React plugins by hand (more config for no real gain at our scale).
+
+### D17: Self-merge after green CI; no required approval
+- **Date:** 2026-10-15
+- **Replaces:** the "1 approval for every PR" part of D11. A PR into `main` is still required, and branch protection still blocks direct pushes, force pushes and deletions.
+- **Why:** Working async, PRs sat for days waiting on the partner's review, which blocked dependent work before the M2 checkpoint. CI (tests, linters, CDK synth, no-IAM-role check) already catches what review mostly caught. Partner review stays welcome but optional.
+- **Alternatives:** keep required approval (too slow for our schedule); remove branch protection entirely (loses the PR + CI gate on `main`).
