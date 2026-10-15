@@ -83,3 +83,9 @@ Most of D1–D8 come from the sandbox service tests in [SETUP.md §4](../SETUP.m
 - **Replaces:** the duplicate-handling implementation described in D13; user-scoped status keys remain unchanged.
 - **Why:** `lambda-run-role` has object read/write access but no `s3:ListBucket`, so probing for a missing status object can return `AccessDenied` instead of a reliable not-found result. Validate now downloads the source with its inspected ETag, conditionally claims an eligible job as `VALIDATING` before creating outputs, creates artifacts with `If-None-Match: *`, and updates status with `If-Match`. The manifest is created before `READY_FOR_ANALYSIS`, later states cannot be overwritten, and a job ID is bound to one source key and ETag.
 - **Alternatives:** grant `s3:ListBucket` (the Academy role cannot be changed); accept last-writer-wins updates (can regress `COMPLETE`); reuse a job ID for replacement bytes (can mix artifacts from different uploads).
+
+### D16: oxlint instead of ESLint for the frontend
+- **Date:** 2026-10-14
+- **Replaces:** "Prettier + ESLint" for the frontend in SETUP §6 and ROADMAP Phase 3.
+- **Why:** The current Vite React template comes with oxlint already configured. It covers the React hook rules we need with no extra setup and runs much faster. Prettier still handles formatting.
+- **Alternatives:** add ESLint and its React plugins by hand (more config for no real gain at our scale).
