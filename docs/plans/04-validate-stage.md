@@ -37,7 +37,7 @@ Most of this phase was delivered early, together with Phase 2, in PR #1 (Fahad).
 - [x] A valid upload produces a thumbnail and a `READY_FOR_ANALYSIS` status, plus the Analyze manifest
 - [x] An invalid upload ends as `FAILED` with a stable code and a user-safe message
 - [x] pytest runs in CI using the `docs/contracts/` examples
-- [ ] Ruff lint and format checks pass in CI
+- [x] Ruff lint and format checks pass in CI
 
 ## Test / demo steps
 
@@ -53,6 +53,7 @@ Most of this phase was delivered early, together with Phase 2, in PR #1 (Fahad).
 
 - 2026-10-13 Fahad: Validate Lambda delivered in PR #1 (see the Phase 2 plan for details).
 - 2026-10-14 Efren: Confirmed live in Efren's sandbox: valid images reach `READY_FOR_ANALYSIS`, a fake `.jpg` ends as `FAILED`/`UNSUPPORTED_FORMAT`. Added Ruff (config, auto-fixes and formatting only; no logic changes) and the CI step. Next: CI green, then close the phase.
+- 2026-10-14 Efren: PR #12 opened; CI green with the new Ruff step. Next: Fahad reviews #11 and #12; after merging, mark Phases 3 and 4 ✅ and write the Oct 19 demo script.
 
 ## Outcome notes
 
