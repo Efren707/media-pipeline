@@ -8,9 +8,9 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 **Active phase:** deadline-rescue Phase 5 Analyze demo; live AWS verification is next
 
-#### Efren (updated 2026-10-15)
-- **Working on:** merged #10–#12 (upload flow, Ruff); Phases 3 and 4 closed. Dropped the required PR approval (D17)
-- **Next:** midpoint presentation content and demo video for the Oct 19 checkpoint
+#### Efren (updated 2026-11-09)
+- **Working on:** first live Analyze deploy in my sandbox; COMPLETE/FLAGGED/FAILED verified on AWS with UI screenshots in `docs/evidence/phase-5/`
+- **Next:** pick up the next task toward the Nov 16 presentation
 - **Blockers:** none
 
 #### Fahad (updated 2026-11-09)
