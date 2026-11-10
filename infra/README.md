@@ -59,7 +59,7 @@ The browser and manifests cannot choose these keys. Do not place model files und
 With the stack deployed and temporary Academy credentials active, run from the repository root:
 
 ```bash
-scripts/subscribe-user-notifications.sh <user-id>
+bash scripts/subscribe-user-notifications.sh <user-id>
 ```
 
 The user ID is the canonical lowercase UUID returned as `user.id` by signup. Enter the email only at the prompt; do not store it in `.env`. Do not process uploads during setup. Confirm the subscription email, then rerun the command so the helper can reuse the confirmed subscription and reapply the exact `results/<user-id>/` message-body filter. Continue to hold uploads while SNS propagates the filter change, which can take up to 15 minutes.
