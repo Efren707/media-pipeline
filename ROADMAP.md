@@ -49,7 +49,7 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | 🏁 | **M2 Checkpoint**: upload → validate → thumbnail + status | | **Oct 19** | | | |
 | 5 | [Analyze stage (AI)](#5-analyze-stage-ai) | M3 | Oct 26 | Fahad | 🔨 | [plan](docs/plans/05-analyze-stage.md) |
 | 6 | [Failure handling & retries](#6-failure-handling--retries) | M3 | Nov 11 | Efren | 🔨 | [plan](docs/plans/06-failure-handling.md) |
-| 7 | [Auth & users](#7-auth--users) | M3 | Nov 1 | Both | 📝 | [plan](docs/plans/07-auth-users.md) |
+| 7 | [Auth & users](#7-auth--users) | M3 | Nov 1 | Both | ✅ | [plan](docs/plans/07-auth-users.md) |
 | 🏁 | **M3 Core pipeline** | | **Nov 1** | | | |
 | 8 | [Notifications](#8-notifications) | M4 | Nov 3 | TBD | ⬜ | n/a |
 | 9 | [Status dashboard, gallery & search](#9-status-dashboard-gallery--search) | M4 | Nov 7 | TBD | ⬜ | n/a |
