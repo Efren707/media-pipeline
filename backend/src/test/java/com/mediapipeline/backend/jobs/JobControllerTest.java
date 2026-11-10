@@ -3,6 +3,7 @@ package com.mediapipeline.backend.jobs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -231,6 +232,56 @@ class JobControllerTest {
   }
 
   @Test
+  void getCompleteJobReturnsLabelsAndModerationFromItsResult() throws Exception {
+    String status =
+        """
+        {"schemaVersion":"1.0","jobId":"%s","userId":"demo-user","state":"COMPLETE",
+         "sourceKey":"uploads/demo-user/%s.jpg","sourceETag":"abc",
+         "thumbnailKey":"thumbnails/demo-user/%s.jpg",
+         "resultKey":"results/demo-user/%s.json","updatedAt":"2026-10-14T12:00:00Z","error":null}
+        """
+            .formatted(JOB_ID, JOB_ID, JOB_ID, JOB_ID);
+    String result =
+        """
+        {"schemaVersion":"1.0","jobId":"%s","userId":"demo-user",
+         "modelVersion":"squeezenet1.1-7",
+         "labels":[{"name":"tabby cat","confidence":0.86}],
+         "moderation":{"verdict":"SAFE","confidence":0.0,"categories":[]}}
+        """
+            .formatted(JOB_ID);
+    stubStatusAndResult(status, result);
+
+    mvc.perform(get("/api/jobs/" + JOB_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.result.modelVersion").value("squeezenet1.1-7"))
+        .andExpect(jsonPath("$.result.labels[0].name").value("tabby cat"))
+        .andExpect(jsonPath("$.result.labels[0].confidence").value(0.86))
+        .andExpect(jsonPath("$.result.moderation.verdict").value("SAFE"));
+
+    ArgumentCaptor<GetObjectRequest> requests = ArgumentCaptor.forClass(GetObjectRequest.class);
+    verify(s3, times(2)).getObjectAsBytes(requests.capture());
+    assertThat(requests.getAllValues().get(1).key())
+        .isEqualTo("results/demo-user/" + JOB_ID + ".json");
+  }
+
+  @Test
+  void getJobRejectsResultKeyOutsideAuthenticatedUserPrefix() throws Exception {
+    stubStatus(
+        """
+        {"schemaVersion":"1.0","jobId":"%s","userId":"demo-user","state":"COMPLETE",
+         "thumbnailKey":"thumbnails/demo-user/%s.jpg",
+         "resultKey":"results/other-user/%s.json","updatedAt":"2026-10-14T12:00:00Z"}
+        """
+            .formatted(JOB_ID, JOB_ID, JOB_ID));
+
+    mvc.perform(get("/api/jobs/" + JOB_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.result").isEmpty());
+
+    verify(s3, times(1)).getObjectAsBytes(any(GetObjectRequest.class));
+  }
+
+  @Test
   void getJobNeverSignsThumbnailOutsideUserPrefix() throws Exception {
     stubStatus(
         """
@@ -242,6 +293,23 @@ class JobControllerTest {
     mvc.perform(get("/api/jobs/" + JOB_ID))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.thumbnailUrl").isEmpty());
+  }
+
+  @Test
+  void getJobRejectsStatusWhoseEmbeddedIdentityDoesNotMatchItsKey() throws Exception {
+    stubStatus(
+        """
+        {"schemaVersion":"1.0","jobId":"%s","userId":"other-user","state":"COMPLETE",
+         "thumbnailKey":"thumbnails/other-user/%s.jpg",
+         "resultKey":"results/other-user/%s.json","updatedAt":"2026-10-14T12:00:00Z"}
+        """
+            .formatted(JOB_ID, JOB_ID, JOB_ID));
+
+    mvc.perform(get("/api/jobs/" + JOB_ID))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.error.code").value("JOB_NOT_FOUND"));
+
+    verify(s3, times(1)).getObjectAsBytes(any(GetObjectRequest.class));
   }
 
   @Test
@@ -268,6 +336,14 @@ class JobControllerTest {
         .thenReturn(
             ResponseBytes.fromByteArray(
                 GetObjectResponse.builder().build(), statusJson.getBytes()));
+  }
+
+  private void stubStatusAndResult(String statusJson, String resultJson) {
+    when(s3.getObjectAsBytes(any(GetObjectRequest.class)))
+        .thenReturn(
+            ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), statusJson.getBytes()),
+            ResponseBytes.fromByteArray(
+                GetObjectResponse.builder().build(), resultJson.getBytes()));
   }
 
   private JsonNode contract(String name) throws IOException {

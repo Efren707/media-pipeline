@@ -36,6 +36,9 @@ jobs:
       - name: Test Validate Lambda
         run: python -m unittest discover -s lambdas/validate/tests -v
 
+      - name: Test Analyze Lambda
+        run: python -m unittest discover -s lambdas/analyze/tests -v
+
       - name: Test operational scripts
         run: python -m unittest discover -s scripts/tests -v
 
@@ -53,8 +56,10 @@ jobs:
         working-directory: infra
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Build local Lambda asset for synthesis
-        run: python lambdas/validate/build_package.py --offline-local
+      - name: Build local Lambda assets for synthesis
+        run: |
+          python lambdas/validate/build_package.py --offline-local
+          python lambdas/analyze/build_package.py --offline-local
 
       - name: Type-check and test CDK
         working-directory: infra
@@ -110,4 +115,5 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
+      - run: npm test
       - run: npm run build

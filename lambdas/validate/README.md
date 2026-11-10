@@ -15,7 +15,7 @@ The 16 tests include corrupt images, stale S3 events, first-upload behavior with
 
 ## Build for Lambda
 
-From `infra/`, `npm run build:lambda` downloads a Python 3.12 manylinux x86_64 Pillow wheel and creates `lambdas/validate/dist/`. CDK packages that directory.
+From `infra/`, `npm run build:validate` downloads a Python 3.12 manylinux x86_64 Pillow wheel and creates `lambdas/validate/dist/`. `npm run build:lambdas` builds both pipeline stages. CDK packages the generated directories.
 
 For an offline syntax/synthesis check on a compatible x86_64 Linux machine:
 

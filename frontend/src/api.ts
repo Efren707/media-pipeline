@@ -8,6 +8,16 @@ export interface ApiError {
   message: string
 }
 
+export interface AnalysisResult {
+  modelVersion: string
+  labels: Array<{ name: string; confidence: number }>
+  moderation: {
+    verdict: 'SAFE' | 'FLAGGED'
+    confidence: number
+    categories: string[]
+  }
+}
+
 export interface CreateUploadResponse {
   jobId: string
   state: 'QUEUED'
@@ -25,6 +35,7 @@ export interface JobStatusResponse {
   state: JobState
   thumbnailUrl: string | null
   updatedAt: string
+  result: AnalysisResult | null
   error: ApiError | null
 }
 

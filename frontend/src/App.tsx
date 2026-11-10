@@ -44,7 +44,7 @@ export default function App() {
   return (
     <main>
       <h1>Media Pipeline</h1>
-      <p className="muted">Upload an image. It's validated and thumbnailed on AWS.</p>
+      <p className="muted">Upload an image. AWS validates, thumbnails, and classifies it.</p>
 
       <form onSubmit={handleSubmit} className="upload">
         <input

@@ -4,9 +4,9 @@ TypeScript AWS CDK app for the sandbox-compatible Media Pipeline. The current ch
 
 - one private, SSE-S3-encrypted media bucket;
 - a TLS-only bucket policy, narrow CORS configuration, and 30-day demo-data lifecycle;
-- the Python 3.12 Validate Lambda using the existing `lambda-run-role`;
-- an `uploads/`-only S3 event notification and explicit Lambda permission;
-- a one-week CloudWatch log group.
+- the Python 3.12 Validate and Analyze Lambdas using the existing `lambda-run-role`;
+- prefix-scoped S3 event notifications for `uploads/` and `stage/analyze/`;
+- explicit S3 invoke permissions and one-week CloudWatch log groups.
 
 It deliberately creates no IAM role and no NAT Gateway.
 
@@ -21,13 +21,14 @@ CDK_DEFAULT_REGION=us-east-1 \
 npm run verify
 ```
 
-`npm run verify` builds the Lambda package before testing and synthesis, which makes it safe on a clean checkout. The normal package build downloads the Python 3.12 manylinux x86_64 Pillow wheel. Use `python ../lambdas/validate/build_package.py --offline-local` only for an offline syntax/synthesis check on compatible Linux.
+`npm run verify` builds both Lambda packages before testing and synthesis, which makes it safe on a clean checkout. The normal builds download Python 3.12 manylinux x86_64 wheels. The Analyze package includes ONNX Runtime, NumPy and Pillow but not the model binary. The `--offline-local` option creates source-only assets for local CDK tests and synthesis; do not deploy those offline assets.
 
 From the repository root, CI also runs:
 
 ```bash
 python3 scripts/validate_contracts.py
 python3 -m unittest discover -s lambdas/validate/tests -v
+python3 -m unittest discover -s lambdas/analyze/tests -v
 python3 -m unittest discover -s scripts/tests -v
 ```
 
@@ -42,6 +43,15 @@ scripts/checkpoint-smoke-test.sh path/to/test.jpg
 ```
 
 Do not run a normal `cdk bootstrap`. The deployment script creates the account-specific assets bucket and the app uses `CliCredentialsStackSynthesizer`.
+
+Before testing Analyze, upload the trusted model and ImageNet label file to the fixed private keys printed in the Lambda configuration:
+
+```bash
+aws s3 cp path/to/squeezenet1.1-7.onnx "s3://$MEDIA_BUCKET/models/squeezenet1.1-7.onnx"
+aws s3 cp path/to/imagenet-labels.txt "s3://$MEDIA_BUCKET/models/imagenet-labels.txt"
+```
+
+The browser and manifests cannot choose these keys. Do not place model files under `uploads/`.
 
 ## Optional resource teardown
 

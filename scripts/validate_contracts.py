@@ -67,6 +67,7 @@ def main() -> None:
             "jobId",
             "userId",
             "sourceKey",
+            "sourceETag",
             "thumbnailKey",
             "modelVersion",
             "labels",
@@ -77,6 +78,18 @@ def main() -> None:
     )
     if result["jobId"] != status["jobId"] or result["userId"] != status["userId"]:
         raise AssertionError("status and result examples must describe the same sample job")
+    if not isinstance(result["labels"], list) or not 1 <= len(result["labels"]) <= 5:
+        raise AssertionError("result labels must contain between one and five entries")
+    confidences = [label["confidence"] for label in result["labels"]]
+    if confidences != sorted(confidences, reverse=True):
+        raise AssertionError("result labels must be ordered by descending confidence")
+    require(
+        result["moderation"],
+        {"verdict", "confidence", "categories"},
+        "result.example.json moderation",
+    )
+    if result["moderation"]["verdict"] not in {"SAFE", "FLAGGED"}:
+        raise AssertionError("result moderation verdict must be SAFE or FLAGGED")
 
     create_request = load("api/create-upload.request.json")
     require(create_request, {"contentType", "sizeBytes"}, "api/create-upload.request.json")

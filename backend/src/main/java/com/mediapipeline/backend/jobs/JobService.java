@@ -1,6 +1,7 @@
 package com.mediapipeline.backend.jobs;
 
 import com.mediapipeline.backend.config.MediaProperties;
+import com.mediapipeline.backend.jobs.JobDtos.AnalysisResult;
 import com.mediapipeline.backend.jobs.JobDtos.CreateUploadRequest;
 import com.mediapipeline.backend.jobs.JobDtos.CreateUploadResponse;
 import com.mediapipeline.backend.jobs.JobDtos.JobStatusResponse;
@@ -98,15 +99,27 @@ class JobService {
         status.state(),
         thumbnailUrl(userId, status),
         status.updatedAt(),
+        result(userId, status),
         status.error());
   }
 
-  /** Only signs keys inside this user's thumbnail prefix, whatever the status document says. */
+  private AnalysisResult result(String userId, JobStatus status) {
+    String expectedKey = StatusStore.resultKey(userId, status.jobId());
+    if (!("COMPLETE".equals(status.state()) || "FLAGGED".equals(status.state()))
+        || !expectedKey.equals(status.resultKey())) {
+      return null;
+    }
+    return statusStore
+        .findResult(userId, status.jobId())
+        .map(JobDtos.ResultDocument::toResponse)
+        .orElse(null);
+  }
+
+  /** Only signs the exact thumbnail key derived from the authenticated user and job. */
   private String thumbnailUrl(String userId, JobStatus status) {
     String key = status.thumbnailKey();
-    if (key == null
-        || "FAILED".equals(status.state())
-        || !key.startsWith("thumbnails/" + userId + "/")) {
+    String expectedKey = "thumbnails/" + userId + "/" + status.jobId() + ".jpg";
+    if (key == null || "FAILED".equals(status.state()) || !key.equals(expectedKey)) {
       return null;
     }
     return presigner
