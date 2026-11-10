@@ -111,7 +111,7 @@ We tested each service in Efren's sandbox. **Key finding: there is no `LabRole`.
 After deploying the stack, create each demo user's filtered email subscription from the repository root:
 
 ```bash
-scripts/subscribe-user-notifications.sh <user-id>
+bash scripts/subscribe-user-notifications.sh <user-id>
 ```
 
 Use the canonical lowercase UUID returned as `user.id` by signup. The helper prompts for the email address without displaying it, verifies that the active AWS identity is an Academy `voclabs` session, and discovers the results topic from the stack output. Do not add an email address to `.env` or pass it on the command line.
