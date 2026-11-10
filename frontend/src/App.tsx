@@ -87,40 +87,42 @@ function Uploader({ username, onLogout }: { username: string; onLogout: () => vo
   }
 
   return (
-    <main>
-      <header className="topbar">
-        <h1>Media Pipeline</h1>
-        <span className="muted">
-          Signed in as <strong>{username}</strong>{' '}
-          <button type="button" className="link" onClick={onLogout}>
+    <>
+      <nav className="navbar">
+        <div className="navbar-inner">
+          <span className="brand">Media Pipeline</span>
+          <button type="button" className="secondary" onClick={onLogout}>
             Log out
           </button>
-        </span>
-      </header>
-      <p className="muted">Upload an image. AWS validates, thumbnails, and classifies it.</p>
+        </div>
+      </nav>
+      <main>
+        <h1>Hi, {username}</h1>
+        <p className="muted">Upload an image. AWS validates, thumbnails, and classifies it.</p>
 
-      <form onSubmit={handleSubmit} className="upload">
-        <input
-          type="file"
-          accept={ACCEPTED_TYPES.join(',')}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          disabled={busy}
-        />
-        <button type="submit" disabled={!file || busy}>
-          {busy ? 'Uploading…' : 'Upload'}
-        </button>
-      </form>
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
+        <form onSubmit={handleSubmit} className="upload">
+          <input
+            type="file"
+            accept={ACCEPTED_TYPES.join(',')}
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            disabled={busy}
+          />
+          <button type="submit" disabled={!file || busy}>
+            {busy ? 'Uploading…' : 'Upload'}
+          </button>
+        </form>
+        {error && (
+          <p role="alert" className="error">
+            {error}
+          </p>
+        )}
 
-      <section aria-label="Uploads" className="jobs">
-        {jobs.map((job) => (
-          <JobCard key={job.jobId} jobId={job.jobId} fileName={job.fileName} />
-        ))}
-      </section>
-    </main>
+        <section aria-label="Uploads" className="jobs">
+          {jobs.map((job) => (
+            <JobCard key={job.jobId} jobId={job.jobId} fileName={job.fileName} />
+          ))}
+        </section>
+      </main>
+    </>
   )
 }

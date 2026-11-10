@@ -51,7 +51,7 @@ export function AuthForm({
   }
 
   return (
-    <main>
+    <main className="auth-page">
       <h1>Media Pipeline</h1>
       <p className="muted">
         {signingUp
