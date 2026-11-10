@@ -4,5 +4,6 @@
   "state": "READY_FOR_ANALYSIS",
   "thumbnailUrl": "https://example.invalid/presigned-thumbnail-redacted",
   "updatedAt": "2026-10-13T15:00:00Z",
+  "result": null,
   "error": null
 }

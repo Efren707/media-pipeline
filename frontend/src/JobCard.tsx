@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react'
 import { getJob, type JobState, type JobStatusResponse } from './api'
+import { isSettled } from './jobState'
 
 const POLL_MS = 2000
 const GIVE_UP_MS = 2 * 60 * 1000
 
-// READY_FOR_ANALYSIS is the end of the line until the Analyze stage exists (Phase 5).
-const SETTLED: JobState[] = ['READY_FOR_ANALYSIS', 'COMPLETE', 'FLAGGED', 'FAILED']
-
-const STEPS: JobState[] = ['QUEUED', 'VALIDATING', 'READY_FOR_ANALYSIS']
+const STEPS: JobState[] = ['QUEUED', 'VALIDATING', 'READY_FOR_ANALYSIS', 'ANALYZING']
 
 const LABELS: Record<JobState, string> = {
   QUEUED: 'Queued',
@@ -22,6 +20,29 @@ const LABELS: Record<JobState, string> = {
 interface Props {
   jobId: string
   fileName: string
+}
+
+export function JobResult({ job }: { job: JobStatusResponse }) {
+  if (!job.result) return null
+
+  const flagged = job.state === 'FLAGGED'
+  return (
+    <section className={`result ${flagged ? 'result-flagged' : ''}`} aria-label="Analysis result">
+      <strong>{flagged ? 'Needs review' : 'Analysis complete'}</strong>
+      {flagged && job.result.moderation.categories.length > 0 && (
+        <p className="moderation">Categories: {job.result.moderation.categories.join(', ')}</p>
+      )}
+      <ul className="labels">
+        {job.result.labels.map((label) => (
+          <li key={label.name}>
+            <span>{label.name}</span>
+            <strong>{Math.round(label.confidence * 100)}%</strong>
+          </li>
+        ))}
+      </ul>
+      <small className="muted">Model: {job.result.modelVersion}</small>
+    </section>
+  )
 }
 
 export function JobCard({ jobId, fileName }: Props) {
@@ -41,7 +62,7 @@ export function JobCard({ jobId, fileName }: Props) {
         setJob(next)
         // Each poll returns a freshly signed URL; keep the first so the image doesn't reload.
         if (next.thumbnailUrl) setThumbnailUrl((current) => current ?? next.thumbnailUrl)
-        if (SETTLED.includes(next.state)) return
+        if (isSettled(next.state)) return
       } catch {
         // Transient errors (backend restarting, etc.): keep polling until the deadline.
       }
@@ -61,7 +82,7 @@ export function JobCard({ jobId, fileName }: Props) {
 
   const state = job?.state ?? 'QUEUED'
   const failed = state === 'FAILED'
-  const reached = STEPS.indexOf(state)
+  const reached = isSettled(state) ? STEPS.length - 1 : STEPS.indexOf(state)
 
   return (
     <article className={`job ${failed ? 'job-failed' : ''}`}>
@@ -89,7 +110,8 @@ export function JobCard({ jobId, fileName }: Props) {
             ))}
           </ol>
         )}
-        {timedOut && !SETTLED.includes(state) && (
+        {job && <JobResult job={job} />}
+        {timedOut && !isSettled(state) && (
           <p className="error">
             No progress after 2 minutes. Check the Lambda logs for this job ID.
           </p>

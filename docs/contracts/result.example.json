@@ -3,17 +3,26 @@
   "jobId": "550e8400-e29b-41d4-a716-446655440000",
   "userId": "demo-user",
   "sourceKey": "uploads/demo-user/550e8400-e29b-41d4-a716-446655440000.jpg",
+  "sourceETag": "4f52c45d8b1b70c29fcd1f971d4f6541",
   "thumbnailKey": "thumbnails/demo-user/550e8400-e29b-41d4-a716-446655440000.jpg",
-  "modelVersion": "pending-selection",
+  "modelVersion": "squeezenet1.1-7",
   "labels": [
     {
-      "name": "example-label",
-      "confidence": 0.91
+      "name": "tabby cat",
+      "confidence": 0.86
+    },
+    {
+      "name": "tiger cat",
+      "confidence": 0.09
+    },
+    {
+      "name": "Egyptian cat",
+      "confidence": 0.05
     }
   ],
   "moderation": {
     "verdict": "SAFE",
-    "confidence": 0.97,
+    "confidence": 0.0,
     "categories": []
   },
   "completedAt": "2026-10-13T15:00:05Z"

@@ -46,7 +46,7 @@ describe("MediaPipelineStack", () => {
     ).toContain("lambda-run-role");
     template.hasResourceProperties("AWS::S3::Bucket", {
       NotificationConfiguration: {
-        LambdaConfigurations: [
+        LambdaConfigurations: Match.arrayWith([
           Match.objectLike({
             Event: "s3:ObjectCreated:*",
             Filter: {
@@ -55,7 +55,38 @@ describe("MediaPipelineStack", () => {
               }
             }
           })
-        ]
+        ])
+      }
+    });
+  });
+
+  test("creates Analyze with fixed model keys and an analyze-manifest trigger", () => {
+    template.resourceCountIs("AWS::Lambda::Function", 2);
+    template.resourceCountIs("AWS::Lambda::Permission", 2);
+    template.hasResourceProperties("AWS::Lambda::Function", {
+      FunctionName: "mp-testuser-analyze",
+      Runtime: "python3.12",
+      Handler: "handler.handler",
+      Environment: {
+        Variables: Match.objectLike({
+          MODEL_KEY: "models/squeezenet1.1-7.onnx",
+          LABELS_KEY: "models/imagenet-labels.txt",
+          MODEL_VERSION: "squeezenet1.1-7"
+        })
+      }
+    });
+    template.hasResourceProperties("AWS::S3::Bucket", {
+      NotificationConfiguration: {
+        LambdaConfigurations: Match.arrayWith([
+          Match.objectLike({
+            Event: "s3:ObjectCreated:*",
+            Filter: {
+              S3Key: {
+                Rules: [{ Name: "prefix", Value: "stage/analyze/" }]
+              }
+            }
+          })
+        ])
       }
     });
   });
@@ -65,10 +96,13 @@ describe("MediaPipelineStack", () => {
       readFileSync(path.resolve(__dirname, "../package.json"), "utf8")
     );
     const verifyCommand = String(packageJson.scripts.verify);
-    const packageIndex = verifyCommand.indexOf("npm run build:lambda");
+    const validatePackageIndex = verifyCommand.indexOf("npm run build:validate");
+    const analyzePackageIndex = verifyCommand.indexOf("npm run build:analyze");
     const testIndex = verifyCommand.indexOf("npm test");
 
-    expect(packageIndex).toBeGreaterThanOrEqual(0);
-    expect(packageIndex).toBeLessThan(testIndex);
+    expect(validatePackageIndex).toBeGreaterThanOrEqual(0);
+    expect(analyzePackageIndex).toBeGreaterThanOrEqual(0);
+    expect(validatePackageIndex).toBeLessThan(testIndex);
+    expect(analyzePackageIndex).toBeLessThan(testIndex);
   });
 });

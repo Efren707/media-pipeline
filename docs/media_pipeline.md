@@ -27,7 +27,7 @@ Validate Lambda (existing lambda-run-role)
   |-- status/{userId}/{jobId}.json
   `-- stage/analyze/{userId}/{jobId}.json
           |
-          | ObjectCreated event, prefix stage/analyze/ (Phase 5)
+          | ObjectCreated event, prefix stage/analyze/
           v
 Analyze Lambda: self-hosted ONNX tagging and moderation
   |-- results/{userId}/{jobId}.json
@@ -48,7 +48,7 @@ S3 is storage, status store, and the handoff mechanism between stages. Each stag
 - Lambda cannot call Rekognition, DynamoDB, SNS, SQS, or RDS.
 - Step Functions, API Gateway, Cognito, SES, and SQS creation is blocked.
 - There is no NAT Gateway. Lambdas remain outside a VPC.
-- Large Python dependencies use Lambda-compatible wheels or a layer. Model weights live in S3 and are loaded into `/tmp` during a cold start.
+- Large Python dependencies use Lambda-compatible manylinux wheels in the function package. Model weights live in S3 and are loaded into `/tmp` during a cold start.
 
 ## 4. S3 key contract
 
@@ -108,11 +108,11 @@ Planned endpoints:
 | Method and path | Purpose |
 |---|---|
 | `POST /api/uploads` | Authorize the user, generate a job ID, write `QUEUED`, and return a short-lived presigned PUT URL |
-| `GET /api/jobs/{jobId}` | Return the authenticated user's status JSON |
+| `GET /api/jobs/{jobId}` | Return the authenticated user's status, labels, and moderation result |
 | `GET /api/jobs` | List the authenticated user's jobs |
 | `GET /api/gallery` | Return completed results and short-lived thumbnail URLs |
 
-The API always derives the S3 user prefix from the authenticated account. A caller cannot choose another user's prefix. Example requests and responses are in [`contracts/api/`](contracts/api/).
+The API always derives the S3 user prefix from the authenticated account. A caller cannot choose another user's prefix. Terminal results are read only when the status points to the exact `results/{authenticatedUser}/{jobId}.json` key, and the embedded result identity must match. Example requests and responses are in [`contracts/api/`](contracts/api/).
 
 `POST /api/uploads` takes `{contentType, sizeBytes}` ([`create-upload.request.json`](contracts/api/create-upload.request.json)). It rejects types other than JPEG, PNG and WebP (`UNSUPPORTED_FORMAT`) and sizes over 10 MiB (`FILE_TOO_LARGE`) before writing anything. It then writes `QUEUED` with `If-None-Match: *` and `sourceETag: null`, and only after that signs the PUT. `Content-Type` and `Content-Length` are part of the signature, so the browser must upload exactly the approved type and size. The status response leaves out `userId`, `sourceKey` and `sourceETag`. Errors use `{"error": {"code", "message"}}`, and an unknown or malformed job ID returns `404 JOB_NOT_FOUND`.
 
@@ -129,6 +129,8 @@ Until Phase 7 adds login, the backend acts as one configured demo user.
 - Secrets and temporary Academy credentials stay in local untracked files. They are never placed in Lambda environment variables or committed.
 - The Academy-provided roles are broader than ideal. This is a documented sandbox exception; separate per-owner buckets and strict application-level prefix checks reduce exposure.
 - CDK synthesis fails CI if a template contains `AWS::IAM::Role` or `AWS::EC2::NatGateway`.
+- Analyze accepts only fixed trusted model keys, binds source reads to Validate's ETag, uses conditional writes, and never replaces a result or regresses a terminal status.
+- The restricted-label policy demonstrates auditable moderation for weapons, alcohol, and tobacco labels. It is not presented as general NSFW detection or a production safety classifier.
 
 ## 9. Failure handling
 

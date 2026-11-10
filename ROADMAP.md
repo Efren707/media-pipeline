@@ -6,17 +6,17 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 > Update this at the end of every work session (`/wrap-up`). Read it first when starting one (`/start-session`). **Edit only your own block**, so parallel branches merge without conflicts.
 
-**Active phase:** M2 Checkpoint (Phases 2–4 built and merged) → next: midpoint presentation + demo, then Phase 5, Analyze stage
+**Active phase:** deadline-rescue Phase 5 Analyze demo; live AWS verification is next
 
 #### Efren (updated 2026-10-15)
 - **Working on:** merged #10–#12 (upload flow, Ruff); Phases 3 and 4 closed. Dropped the required PR approval (D17)
 - **Next:** midpoint presentation content and demo video for the Oct 19 checkpoint
 - **Blockers:** none
 
-#### Fahad (updated 2026-10-13)
-- **Working on:** secure M2 vertical slice: contracts, TypeScript CDK, and Validate Lambda
-- **Next:** verify the AWS role check, deploy in the sandbox, and open the scaffold PR for Efren's review
-- **Blockers:** AWS deployment must be run during an active Academy lab session
+#### Fahad (updated 2026-11-09)
+- **Working on:** secure Analyze Lambda, final-result API, and React demo dashboard on `feat/analyze-stage`
+- **Next:** upload model assets, deploy in an active Academy lab, capture valid/flagged/invalid evidence, and open the PR
+- **Blockers:** live AWS proof needs temporary Academy credentials; local Maven verification needs Maven Central or GitHub CI
 
 ---
 
@@ -47,7 +47,7 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | 3 | [Upload flow](#3-upload-flow) | M2 | Oct 17 | Efren | ✅ | [plan](docs/plans/03-upload-flow.md) |
 | 4 | [Validate stage](#4-validate-stage) | M2 | Oct 16 | Fahad | ✅ | [plan](docs/plans/04-validate-stage.md) |
 | 🏁 | **M2 Checkpoint**: upload → validate → thumbnail + status | | **Oct 19** | | | |
-| 5 | [Analyze stage (AI)](#5-analyze-stage-ai) | M3 | Oct 26 | TBD | ⬜ | n/a |
+| 5 | [Analyze stage (AI)](#5-analyze-stage-ai) | M3 | Oct 26 | Fahad | 🔨 | [plan](docs/plans/05-analyze-stage.md) |
 | 6 | [Failure handling & retries](#6-failure-handling--retries) | M3 | Oct 29 | TBD | ⬜ | n/a |
 | 7 | [Auth & users](#7-auth--users) | M3 | Nov 1 | TBD | ⬜ | n/a |
 | 🏁 | **M3 Core pipeline** | | **Nov 1** | | | |

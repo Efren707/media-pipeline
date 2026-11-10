@@ -5,11 +5,13 @@
   "description": "AWS CDK infrastructure for the Media Pipeline class project",
   "scripts": {
     "build": "tsc",
-    "build:lambda": "python ../lambdas/validate/build_package.py",
+    "build:validate": "python ../lambdas/validate/build_package.py",
+    "build:analyze": "python ../lambdas/analyze/build_package.py",
+    "build:lambdas": "npm run build:validate && npm run build:analyze",
     "test": "jest --runInBand",
-    "synth": "npm run build:lambda && cdk synth",
+    "synth": "npm run build:lambdas && cdk synth",
     "check:template": "node scripts/check-template.mjs",
-    "verify": "npm run build:lambda && npm run build && npm test && cdk synth --quiet && npm run check:template"
+    "verify": "npm run build:validate && npm run build:analyze && npm run build && npm test && cdk synth --quiet && npm run check:template"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.220.0",

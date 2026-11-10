@@ -22,6 +22,7 @@ export interface MediaPipelineStackProps extends StackProps {
 export class MediaPipelineStack extends Stack {
   public readonly mediaBucketName: string;
   public readonly validateFunctionName: string;
+  public readonly analyzeFunctionName: string;
 
   constructor(scope: Construct, id: string, props: MediaPipelineStackProps) {
     super(scope, id, props);
@@ -30,6 +31,7 @@ export class MediaPipelineStack extends Stack {
     const prefix = `mp-${props.owner}`;
     this.mediaBucketName = `${prefix}-media-${account}`;
     this.validateFunctionName = `${prefix}-validate`;
+    this.analyzeFunctionName = `${prefix}-analyze`;
 
     Tags.of(this).add("Project", "MediaPipeline");
     Tags.of(this).add("Owner", props.owner);
@@ -169,6 +171,51 @@ export class MediaPipelineStack extends Stack {
       sourceArn: `arn:${Stack.of(this).partition}:s3:::${this.mediaBucketName}`
     });
 
+    const analyzeLogGroup = new logs.LogGroup(this, "AnalyzeLogGroup", {
+      logGroupName: `/aws/lambda/${this.analyzeFunctionName}`,
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: RemovalPolicy.DESTROY
+    });
+
+    const analyzeFunction = new lambda.Function(this, "AnalyzeFunction", {
+      functionName: this.analyzeFunctionName,
+      description: "Classifies validated images and writes labels, moderation and final status.",
+      runtime: lambda.Runtime.PYTHON_3_12,
+      architecture: lambda.Architecture.X86_64,
+      code: lambda.Code.fromAsset(
+        path.resolve(__dirname, "../../lambdas/analyze/dist")
+      ),
+      handler: "handler.handler",
+      role: lambdaRole,
+      logGroup: analyzeLogGroup,
+      memorySize: 3008,
+      timeout: Duration.seconds(120),
+      ephemeralStorageSize: Size.mebibytes(2048),
+      reservedConcurrentExecutions: 5,
+      retryAttempts: 2,
+      environment: {
+        MEDIA_BUCKET_NAME: this.mediaBucketName,
+        EXPECTED_BUCKET_OWNER: account,
+        MODEL_KEY: "models/squeezenet1.1-7.onnx",
+        LABELS_KEY: "models/imagenet-labels.txt",
+        MODEL_VERSION: "squeezenet1.1-7",
+        MIN_LABEL_CONFIDENCE: "0.05",
+        MODERATION_THRESHOLD: "0.20"
+      }
+    });
+
+    const allowS3InvokeAnalyze = new lambda.CfnPermission(
+      this,
+      "AllowMediaBucketInvokeAnalyze",
+      {
+        action: "lambda:InvokeFunction",
+        functionName: analyzeFunction.functionName,
+        principal: "s3.amazonaws.com",
+        sourceAccount: account,
+        sourceArn: `arn:${Stack.of(this).partition}:s3:::${this.mediaBucketName}`
+      }
+    );
+
     mediaBucket.notificationConfiguration = {
       lambdaConfigurations: [
         {
@@ -179,10 +226,20 @@ export class MediaPipelineStack extends Stack {
               rules: [{ name: "prefix", value: "uploads/" }]
             }
           }
+        },
+        {
+          event: "s3:ObjectCreated:*",
+          function: analyzeFunction.functionArn,
+          filter: {
+            s3Key: {
+              rules: [{ name: "prefix", value: "stage/analyze/" }]
+            }
+          }
         }
       ]
     };
     mediaBucket.addResourceDependency(allowS3Invoke);
+    mediaBucket.addResourceDependency(allowS3InvokeAnalyze);
 
     new CfnOutput(this, "MediaBucketName", {
       value: mediaBucket.ref,
@@ -191,6 +248,10 @@ export class MediaPipelineStack extends Stack {
     new CfnOutput(this, "ValidateFunctionName", {
       value: validateFunction.functionName,
       description: "Validate-stage Lambda function"
+    });
+    new CfnOutput(this, "AnalyzeFunctionName", {
+      value: analyzeFunction.functionName,
+      description: "Analyze-stage Lambda function"
     });
   }
 }

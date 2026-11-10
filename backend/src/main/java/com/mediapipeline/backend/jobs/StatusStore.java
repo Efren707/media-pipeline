@@ -1,6 +1,7 @@
 package com.mediapipeline.backend.jobs;
 
 import com.mediapipeline.backend.config.MediaProperties;
+import com.mediapipeline.backend.jobs.JobDtos.ResultDocument;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -48,9 +49,35 @@ class StatusStore {
       GetObjectRequest request =
           GetObjectRequest.builder().bucket(bucket).key(key(userId, jobId)).build();
       byte[] body = s3.getObjectAsBytes(request).asByteArray();
-      return Optional.of(json.readValue(body, JobStatus.class));
+      JobStatus status = json.readValue(body, JobStatus.class);
+      if (!jobId.equals(status.jobId()) || !userId.equals(status.userId())) {
+        return Optional.empty();
+      }
+      return Optional.of(status);
     } catch (NoSuchKeyException e) {
       return Optional.empty();
     }
+  }
+
+  Optional<ResultDocument> findResult(String userId, String jobId) {
+    try {
+      GetObjectRequest request =
+          GetObjectRequest.builder()
+              .bucket(bucket)
+              .key(resultKey(userId, jobId))
+              .build();
+      byte[] body = s3.getObjectAsBytes(request).asByteArray();
+      ResultDocument result = json.readValue(body, ResultDocument.class);
+      if (!jobId.equals(result.jobId()) || !userId.equals(result.userId())) {
+        return Optional.empty();
+      }
+      return Optional.of(result);
+    } catch (NoSuchKeyException e) {
+      return Optional.empty();
+    }
+  }
+
+  static String resultKey(String userId, String jobId) {
+    return "results/" + userId + "/" + jobId + ".json";
   }
 }
