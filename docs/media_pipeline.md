@@ -107,6 +107,8 @@ Planned endpoints:
 
 | Method and path | Purpose |
 |---|---|
+| `POST /api/auth/signup` | Create an account and return an access token (`201`) |
+| `POST /api/auth/login` | Check the password and return an access token |
 | `POST /api/uploads` | Authorize the user, generate a job ID, write `QUEUED`, and return a short-lived presigned PUT URL |
 | `GET /api/jobs/{jobId}` | Return the authenticated user's status, labels, and moderation result |
 | `GET /api/jobs` | List the authenticated user's jobs |
@@ -116,7 +118,7 @@ The API always derives the S3 user prefix from the authenticated account. A call
 
 `POST /api/uploads` takes `{contentType, sizeBytes}` ([`create-upload.request.json`](contracts/api/create-upload.request.json)). It rejects types other than JPEG, PNG and WebP (`UNSUPPORTED_FORMAT`) and sizes over 10 MiB (`FILE_TOO_LARGE`) before writing anything. It then writes `QUEUED` with `If-None-Match: *` and `sourceETag: null`, and only after that signs the PUT. `Content-Type` and `Content-Length` are part of the signature, so the browser must upload exactly the approved type and size. The status response leaves out `userId`, `sourceKey` and `sourceETag`. Errors use `{"error": {"code", "message"}}`, and an unknown or malformed job ID returns `404 JOB_NOT_FOUND`.
 
-Until Phase 7 adds login, the backend acts as one configured demo user.
+**Authentication (Phase 7, D5).** Signup and login take `{username, password}` ([`auth-credentials.request.json`](contracts/api/auth-credentials.request.json)) and return `{tokenType: "Bearer", accessToken, expiresAt, user: {id, username}}` ([`auth-token.response.json`](contracts/api/auth-token.response.json)). Usernames are 3–32 letters, digits or `_` and are case-insensitive (stored lowercase). Passwords are 8–72 characters and stored only as BCrypt hashes in the PostgreSQL `users` table. The access token is an HS256 JWT signed with `MP_JWT_SECRET`, issuer `media-pipeline`, valid for 60 minutes, with no refresh token. Its subject is `users.id`, a server-generated UUID, and that is the `{userId}` in every S3 key. Every other endpoint needs `Authorization: Bearer <token>`. Errors: `400 INVALID_REQUEST`, `409 USERNAME_TAKEN`, `401 INVALID_CREDENTIALS` (the same for an unknown user and a wrong password), and `401 UNAUTHORIZED` for a missing, expired or forged token. The React app keeps the token in `sessionStorage`.
 
 ## 8. Security design
 

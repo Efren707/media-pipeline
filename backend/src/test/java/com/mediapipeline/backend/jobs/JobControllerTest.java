@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -28,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.MockMvcBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
@@ -49,7 +51,10 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-@SpringBootTest(properties = {"mp.media-bucket=mp-test-media-bucket", "mp.demo-user-id=demo-user"})
+/**
+ * Every request carries a verified JWT for {@code demo-user}; 401 cases are in AuthControllerTest.
+ */
+@SpringBootTest(properties = "mp.media-bucket=mp-test-media-bucket")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class JobControllerTest {
@@ -78,6 +83,12 @@ class JobControllerTest {
     @Primary
     Clock testClock() {
       return Clock.fixed(Instant.parse("2026-10-14T12:00:00.123Z"), ZoneOffset.UTC);
+    }
+
+    @Bean
+    MockMvcBuilderCustomizer authenticatedAsDemoUser() {
+      return builder ->
+          builder.defaultRequest(get("/").with(jwt().jwt(j -> j.subject("demo-user"))));
     }
   }
 
@@ -331,7 +342,8 @@ class JobControllerTest {
 
   @Test
   void getJobRejectsMalformedIdWithoutCallingS3() throws Exception {
-    mvc.perform(get("/api/jobs/..%2Fother-user%2Fjob")).andExpect(status().isNotFound());
+    // Spring Security's firewall rejects encoded slashes and ".." before the controller runs.
+    mvc.perform(get("/api/jobs/..%2Fother-user%2Fjob")).andExpect(status().isBadRequest());
     mvc.perform(get("/api/jobs/not-a-uuid")).andExpect(status().isNotFound());
     verify(s3, never()).getObjectAsBytes(any(GetObjectRequest.class));
   }
