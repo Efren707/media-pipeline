@@ -6,12 +6,12 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 > Update this at the end of every work session (`/wrap-up`). Read it first when starting one (`/start-session`). **Edit only your own block**, so parallel branches merge without conflicts.
 
-**Active phase:** Phase 5 Analyze is live-verified on AWS and Phase 6 failure handling is done; next is presentation prep or the gallery
+**Active phase:** Phases 6 and 7 are done (Phase 7 auth live-verified against RDS); next is Phase 8 notifications
 
 #### Efren (updated 2026-11-09)
-- **Working on:** merged #17 (Phase 5 live AWS evidence + screenshots) and #18 (Phase 6 read-time watchdog, D18)
-- **Next:** Phase 12 presentation prep (architecture diagram, demo script) or the Phase 9 gallery; agree on the split with Fahad
-- **Blockers:** none (`MediaPipeline-efren` stays deployed; S3 + Lambda only)
+- **Working on:** merged #17 (Phase 5 evidence), #18 (Phase 6 watchdog), #20 (Phase 7: opt-in RDS, JWT signup/login, per-user isolation, React login + navbar) and #21 (Phase 7 ✅)
+- **Next:** Phase 8 notifications (SNS subscription at signup, per-user filter); agree on the split with Fahad
+- **Blockers:** none. `MediaPipeline-efren` is S3 + Lambda only (no RDS). Backend tests need Docker Desktop running
 
 #### Fahad (updated 2026-11-09)
 - **Working on:** secure Analyze Lambda, final-result API, and React demo dashboard on `feat/analyze-stage`
