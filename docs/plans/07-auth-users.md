@@ -39,7 +39,7 @@ Replace the Phase 3 demo user with real accounts. Users sign up and log in throu
 | Local/test DB | Testcontainers PostgreSQL | Real Postgres behavior for free. Needs Docker Desktop locally; GitHub CI has Docker. |
 
 ## Tasks
-- [ ] **Sandbox probe:** create, connect to, stop and delete a `db.t3.micro` Postgres via the CLI. Record the result in SETUP.md §4's service table (currently "not tested yet"). (Both)
+- [x] **Sandbox probe:** create, connect to, stop and delete a `db.t3.micro` Postgres via the CLI. Record the result in SETUP.md §4's service table (currently "not tested yet"). (Both)
 - [ ] **Infra:** opt-in RDS (`withDb` context): DB subnet group on the default VPC subnets, security group, `CfnDBInstance`, `NoEcho` password parameter, endpoint output. `cdk synth` must still contain no `AWS::IAM::Role`. Add CDK tests for both flag states. (Both)
 - [ ] **Backend data layer:** Postgres driver, Spring Data JPA, Flyway `V1__users.sql` (`id uuid pk`, `username unique`, `password_hash`, `created_at`), and a Testcontainers base test. (Both)
 - [ ] **Backend auth:** `SecurityConfig` (stateless, JWT resource server, `/api/auth/**` open, everything else authenticated); `AuthController` signup/login with validation (username pattern, password ≥ 8); `JwtCurrentUser` replaces `DemoCurrentUser`; drop `mp.demo-user-id`; 401/409 errors through `ApiErrorHandler`. (Both)
@@ -65,10 +65,10 @@ Replace the Phase 3 demo user with real accounts. Users sign up and log in throu
 7. Run `/wrap-up`: redeploy without `withDb` (or `cdk destroy`) and confirm no DB instance is left.
 
 ## Open questions
-- Does the Academy sandbox let us create RDS subnet groups and security groups in the default VPC? The probe task answers this. Fallback #6 (built-in demo accounts) applies if RDS is blocked.
+- ~~Does the Academy sandbox let us create RDS and security groups in the default VPC?~~ Yes (probe, 2026-11-09). Whether CloudFormation can create `AWS::RDS::DBSubnetGroup` is still unproven; if not, use the default VPC's implicit subnet group (the probe needed none).
 - Do we keep jobs already created under the `demo-user` prefix? Proposal: no, they're test data.
 
 ## Progress log
-- 2026-11-09 Efren: plan drafted.
+- 2026-11-09 Efren: plan drafted. RDS probe passed in us-east-1: created `db.t3.micro` PostgreSQL 18.3 (default VPC, no subnet group needed), connected over TLS from a laptop IP allowed by a security group, round-tripped a row (`gen_random_uuid()` works), stopped, deleted, and removed the security group. Next: opt-in RDS in CDK.
 
 ## Outcome notes

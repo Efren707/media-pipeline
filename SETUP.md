@@ -86,7 +86,7 @@ We tested each service in Efren's sandbox. **Key finding: there is no `LabRole`.
 | API Gateway | ❌ `AccessDenied` on create | Spring Boot on EC2 behind an Application Load Balancer |
 | SQS | ❌ `AccessDenied` | Lambda auto-retry + a Spring Boot watchdog for stuck jobs |
 | ECR | ⏭️ Not tested (not needed) | Zip + layer Lambda deploys |
-| RDS | Listed as allowed, not tested yet | n/a |
+| RDS | ✅ Allowed (tested 2026-11-09 from the lab login): create/stop/delete a `db.t3.micro` PostgreSQL 18.3 in the default VPC, a security group for port 5432, and a public TLS connection from a laptop IP | n/a |
 
 ### Pre-made roles (IAM is read-only; we can't create roles)
 
