@@ -91,6 +91,67 @@ describe("MediaPipelineStack", () => {
     });
   });
 
+  test("creates one results topic with an owner-scoped name", () => {
+    template.resourceCountIs("AWS::SNS::Topic", 1);
+    template.hasResourceProperties("AWS::SNS::Topic", {
+      TopicName: "mp-testuser-results"
+    });
+  });
+
+  test("allows only this media bucket and account to publish results", () => {
+    template.resourceCountIs("AWS::SNS::TopicPolicy", 1);
+    template.hasResourceProperties("AWS::SNS::TopicPolicy", {
+      PolicyDocument: {
+        Version: "2012-10-17",
+        Statement: [
+          Match.objectLike({
+            Effect: "Allow",
+            Principal: { Service: "s3.amazonaws.com" },
+            Action: "sns:Publish",
+            Condition: {
+              ArnEquals: {
+                "aws:SourceArn": Match.anyValue()
+              },
+              StringEquals: { "aws:SourceAccount": "123456789012" }
+            }
+          })
+        ]
+      }
+    });
+
+    const policies = template.findResources("AWS::SNS::TopicPolicy");
+    const policyJson = JSON.stringify(Object.values(policies)[0]);
+    expect(policyJson).toContain("mp-testuser-media-123456789012");
+    expect(policyJson).not.toContain('["MediaBucket","Arn"]');
+  });
+
+  test("publishes result objects to SNS without removing Lambda triggers", () => {
+    template.hasResourceProperties("AWS::S3::Bucket", {
+      NotificationConfiguration: {
+        LambdaConfigurations: Match.arrayWith([
+          Match.objectLike({
+            Filter: {
+              S3Key: { Rules: [{ Name: "prefix", Value: "uploads/" }] }
+            }
+          }),
+          Match.objectLike({
+            Filter: {
+              S3Key: { Rules: [{ Name: "prefix", Value: "stage/analyze/" }] }
+            }
+          })
+        ]),
+        TopicConfigurations: Match.arrayWith([
+          Match.objectLike({
+            Event: "s3:ObjectCreated:*",
+            Filter: {
+              S3Key: { Rules: [{ Name: "prefix", Value: "results/" }] }
+            }
+          })
+        ])
+      }
+    });
+  });
+
   test("creates no database resources unless asked to", () => {
     template.resourceCountIs("AWS::RDS::DBInstance", 0);
     template.resourceCountIs("AWS::EC2::SecurityGroup", 0);
