@@ -1,4 +1,5 @@
 // Types mirror docs/contracts/api/. Keep them in sync when a contract changes.
+import { sessionStore, type Session } from './session'
 
 export type JobState =
   'QUEUED' | 'VALIDATING' | 'READY_FOR_ANALYSIS' | 'ANALYZING' | 'COMPLETE' | 'FLAGGED' | 'FAILED'
@@ -52,10 +53,30 @@ export class RequestError extends Error {
   }
 }
 
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, init)
+/** auth-token.response.json */
+export interface TokenResponse extends Session {
+  tokenType: 'Bearer'
+}
+
+let onUnauthorized: () => void = () => {}
+
+/** Called when a logged-in request gets 401 (token expired or revoked); the session is gone. */
+export function setUnauthorizedHandler(handler: () => void): void {
+  onUnauthorized = handler
+}
+
+async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const session = sessionStore.get()
+  const headers = new Headers(init.headers)
+  if (session) headers.set('Authorization', `Bearer ${session.accessToken}`)
+
+  const response = await fetch(path, { ...init, headers })
   const body = await response.json().catch(() => null)
   if (!response.ok) {
+    if (response.status === 401 && session) {
+      sessionStore.clear()
+      onUnauthorized()
+    }
     const error = body?.error as ApiError | undefined
     throw new RequestError(
       error?.code ?? `HTTP_${response.status}`,
@@ -84,4 +105,24 @@ export async function uploadImage(file: File): Promise<string> {
 
 export function getJob(jobId: string): Promise<JobStatusResponse> {
   return requestJson<JobStatusResponse>(`/api/jobs/${encodeURIComponent(jobId)}`)
+}
+
+/** Creates the account (signup) or checks the password (login), then stores the session. */
+export async function authenticate(
+  mode: 'signup' | 'login',
+  username: string,
+  password: string,
+): Promise<Session> {
+  const { accessToken, expiresAt, user } = await requestJson<TokenResponse>(`/api/auth/${mode}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  const session = { accessToken, expiresAt, user }
+  sessionStore.save(session)
+  return session
+}
+
+export function logout(): void {
+  sessionStore.clear()
 }
