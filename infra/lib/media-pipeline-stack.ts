@@ -1,23 +1,37 @@
 import * as path from "node:path";
 import {
   CfnOutput,
+  CfnParameter,
   Duration,
   RemovalPolicy,
   Size,
   Stack,
   StackProps,
-  Tags
+  Tags,
+  Validations
 } from "aws-cdk-lib";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as logs from "aws-cdk-lib/aws-logs";
+import * as rds from "aws-cdk-lib/aws-rds";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
+
+/** Opt-in PostgreSQL (Phase 7). Leave it out and the stack stays S3 + Lambda only. */
+export interface DatabaseProps {
+  /** The only address allowed to reach port 5432, as a single IPv4 /32. */
+  readonly clientCidr: string;
+}
 
 export interface MediaPipelineStackProps extends StackProps {
   readonly owner: string;
   readonly corsOrigins: string[];
+  readonly database?: DatabaseProps;
 }
+
+const SINGLE_IPV4_CIDR =
+  /^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)\/32$/;
 
 export class MediaPipelineStack extends Stack {
   public readonly mediaBucketName: string;
@@ -25,6 +39,11 @@ export class MediaPipelineStack extends Stack {
   public readonly analyzeFunctionName: string;
 
   constructor(scope: Construct, id: string, props: MediaPipelineStackProps) {
+    if (props.database && !SINGLE_IPV4_CIDR.test(props.database.clientCidr)) {
+      throw new Error(
+        `dbClientCidr must be a single IPv4 address as /32, got "${props.database.clientCidr}".`
+      );
+    }
     super(scope, id, props);
 
     const account = Stack.of(this).account;
@@ -252,6 +271,78 @@ export class MediaPipelineStack extends Stack {
     new CfnOutput(this, "AnalyzeFunctionName", {
       value: analyzeFunction.functionName,
       description: "Analyze-stage Lambda function"
+    });
+
+    if (props.database) {
+      this.addDatabase(prefix, props.database);
+    }
+  }
+
+  /**
+   * One db.t3.micro PostgreSQL in the default VPC (no VpcId or subnet group, as in the sandbox
+   * probe), reachable only from one client IP. Destroyed with the stack, no backups.
+   */
+  private addDatabase(prefix: string, database: DatabaseProps): void {
+    const password = new CfnParameter(this, "DbPassword", {
+      type: "String",
+      noEcho: true,
+      minLength: 16,
+      allowedPattern: "[A-Za-z0-9]+",
+      description: "RDS master password (MP_DB_PASSWORD in .env). Never stored in the template."
+    });
+
+    const securityGroup = new ec2.CfnSecurityGroup(this, "DbSecurityGroup", {
+      groupName: `${prefix}-db`,
+      groupDescription: "PostgreSQL from one developer IP only",
+      securityGroupIngress: [
+        {
+          ipProtocol: "tcp",
+          fromPort: 5432,
+          toPort: 5432,
+          cidrIp: database.clientCidr,
+          description: "Developer laptop"
+        }
+      ]
+    });
+
+    const instance = new rds.CfnDBInstance(this, "Database", {
+      dbInstanceIdentifier: `${prefix}-db`,
+      engine: "postgres",
+      engineVersion: "18.3",
+      dbInstanceClass: "db.t3.micro",
+      allocatedStorage: "20",
+      storageType: "gp2",
+      storageEncrypted: true,
+      multiAz: false,
+      backupRetentionPeriod: 0,
+      deletionProtection: false,
+      publiclyAccessible: true,
+      dbName: "mediapipeline",
+      masterUsername: "mpadmin",
+      masterUserPassword: password.valueAsString,
+      vpcSecurityGroups: [securityGroup.attrGroupId]
+    });
+    instance.applyRemovalPolicy(RemovalPolicy.DESTROY);
+    // Both are deliberate Phase 7 choices (docs/plans/07-auth-users.md); revisit in Phase 10.
+    Validations.of(instance).acknowledge(
+      {
+        id: "CloudFormation-Validate::W1011",
+        reason: "NoEcho parameter from the untracked .env; SSM write access is unproven in the sandbox."
+      },
+      {
+        id: "CloudFormation-Validate::W9011",
+        reason:
+          "Public only so a laptop backend can connect: the security group allows one /32 and TLS is forced."
+      }
+    );
+
+    new CfnOutput(this, "DbEndpoint", {
+      value: instance.attrEndpointAddress,
+      description: "PostgreSQL host for MP_DB_URL"
+    });
+    new CfnOutput(this, "DbPort", {
+      value: instance.attrEndpointPort,
+      description: "PostgreSQL port"
     });
   }
 }

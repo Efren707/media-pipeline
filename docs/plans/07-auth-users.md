@@ -1,0 +1,74 @@
+# Phase 7: Auth & users
+
+**Roadmap:** [ROADMAP.md](../../ROADMAP.md) · **Owner(s):** Both · **Target:** Nov 1 · **Planned on:** 2026-11-09
+
+## Goal
+Replace the Phase 3 demo user with real accounts. Users sign up and log in through Spring Security with a JWT, user records live in PostgreSQL (RDS on AWS), and every upload, status and result stays scoped to the caller's own `{userId}` S3 prefix.
+
+## Scope
+**In:**
+- Prove RDS PostgreSQL works in the sandbox (create, connect, stop, delete)
+- An opt-in RDS instance in the CDK stack (L1 constructs, default VPC, smallest size)
+- `users` table with Flyway migrations
+- `POST /api/auth/signup` and `POST /api/auth/login` returning a JWT; all `/api/jobs/**` endpoints require one
+- A JWT-backed `CurrentUser` replacing `DemoCurrentUser`
+- React login/signup pages, token in `sessionStorage`, sent as `Authorization: Bearer`
+- Backend tests on a real Postgres via Testcontainers
+
+**Out (deferred or not doing):**
+- SNS email subscription at signup (Phase 8)
+- Label indexing/search tables (Phase 9)
+- EC2 → RDS networking for the deployed backend (Phase 10)
+- Password reset, email verification, refresh tokens, roles/admin
+- Secrets Manager (costs money; the DB password comes from `.env`)
+
+## Decisions
+| Decision | Choice | Why |
+|---|---|---|
+| Auth mechanism | Spring Security + self-issued JWT (D5) | Cognito is blocked. Use `spring-boot-starter-oauth2-resource-server` with an HS256 `JwtEncoder`/`JwtDecoder` instead of a third-party JWT library. |
+| Signing key | `MP_JWT_SECRET` (≥ 32 bytes) from `.env`; the app refuses to start without it outside tests | Never committed; one shared secret is enough for a single backend. |
+| Token lifetime | 60 min access token, no refresh token | Covers a demo session; re-login is acceptable. |
+| Token transport | `Authorization: Bearer`, stored in `sessionStorage` | Stateless and no CSRF handling. Works the same behind CloudFront in Phase 10. React's escaping limits the XSS exposure. |
+| Passwords | BCrypt (Spring Security default `PasswordEncoder`) | Standard salted hashing, with nothing extra to configure. |
+| `userId` | Server-generated UUID; the username is a separate unique column | Satisfies the `CurrentUser` id rule (letters, digits, `-`). Keeps usernames out of S3 keys and the Phase 8 SNS filter. |
+| Schema | Flyway migrations (`V1__users.sql`), `ddl-auto=validate` | Repeatable on Testcontainers, local runs and RDS. |
+| RDS provisioning | L1 `CfnDBInstance` in `MediaPipeline-<owner>`, created only with `-c withDb=true` | The default deploy stays Lambda-only and free. Destroying the DB at `/wrap-up` avoids the storage cost while it's stopped. |
+| RDS size | `db.t3.micro`, PostgreSQL, 20 GB gp2, single-AZ, no backups (`BackupRetentionPeriod: 0`), deletion policy `Delete` | Cost rules; class data is disposable. |
+| RDS network | Default VPC. Publicly accessible, with a security group allowing 5432 only from `-c dbClientCidr=<my-ip>/32` | Lets a laptop backend reach it until Phase 10 moves the backend to EC2 (which then gets its own SG rule). No NAT. |
+| DB credentials | Master password passed as a `NoEcho` CfnParameter from `.env` (`MP_DB_PASSWORD`) | Keeps the plaintext out of the synthesized template and the repo. |
+| Local/test DB | Testcontainers PostgreSQL | Real Postgres behavior for free. Needs Docker Desktop locally; GitHub CI has Docker. |
+
+## Tasks
+- [x] **Sandbox probe:** create, connect to, stop and delete a `db.t3.micro` Postgres via the CLI. Record the result in SETUP.md §4's service table (currently "not tested yet"). (Both)
+- [x] **Infra:** opt-in RDS (`withDb` context): default VPC with no subnet group (as in the probe), security group, `CfnDBInstance`, `NoEcho` password parameter, endpoint output. `cdk synth` must still contain no `AWS::IAM::Role`. Add CDK tests for both flag states. (Both)
+- [x] **Backend data layer:** Postgres driver, Spring Data JPA, Flyway `V1__users.sql` (`id uuid pk`, `username unique`, `password_hash`, `created_at`), and a Testcontainers base test. (Both)
+- [x] **Backend auth:** `SecurityConfig` (stateless, JWT resource server, `/api/auth/**` open, everything else authenticated); `AuthController` signup/login with validation (username pattern, password ≥ 8); `JwtCurrentUser` replaces `DemoCurrentUser`; drop `mp.demo-user-id`; 401/409 errors through `ApiErrorHandler`. (Both)
+- [x] **Backend isolation tests:** user A can't read user B's job status or result (404, not 403, so job IDs don't leak); unauthenticated requests get 401. (Both)
+- [x] **Frontend:** login and signup pages, an auth context holding the token in `sessionStorage`, a fetch wrapper adding the Bearer header and sending a 401 back to login, a logout button. (Both)
+- [x] **Docs:** `docs/media_pipeline.md` (auth flow + `users` table), SETUP.md (new `.env` keys: `MP_JWT_SECRET`, `MP_DB_PASSWORD`, `MP_DB_URL`; deploy with/without DB; Docker requirement), decisions.md entries for anything that changes from this table. (Both)
+- [x] **Live check:** deploy with `withDb=true`, run the backend locally against RDS, then run the demo steps below, capture evidence, and destroy the DB. (Both)
+
+## Acceptance criteria
+- [x] Two users can sign up and log in, and each sees only their own uploads (roadmap "done when").
+- [x] Every `/api/jobs/**` endpoint returns 401 without a valid token; S3 keys come only from the token's `userId`.
+- [x] Passwords are stored only as BCrypt hashes; no secret or DB password is in the repo or the synthesized template.
+- [x] The default `cdk deploy` creates no RDS; `withDb=true` creates exactly one `db.t3.micro`, and `cdk synth` has no `AWS::IAM::Role`.
+- [ ] Backend tests (including Testcontainers), frontend tests, CDK tests, linters and CI are green.
+
+## Test / demo steps
+1. `MP_WITH_DB=true scripts/deploy-checkpoint.sh` (reads `MP_DB_PASSWORD` from `.env`, opens 5432 to your current IP), and copy the `DbEndpoint` output into `MP_DB_URL`.
+2. Start the backend and frontend locally against RDS.
+3. Sign up as `alice`, upload a photo, and wait for `COMPLETED`.
+4. In a private window, sign up as `bob`. Bob's dashboard is empty. Calling Alice's job ID with Bob's token returns 404.
+5. Call `curl /api/jobs/...` with no token and get 401.
+6. Check S3: Alice's objects are under `uploads/<alice-uuid>/` only.
+7. Run `/wrap-up`: redeploy without `MP_WITH_DB` (or `cdk destroy`) and confirm no DB instance is left.
+
+## Open questions
+- ~~Does the Academy sandbox let us create RDS and security groups in the default VPC?~~ Yes (probe, 2026-11-09). The CDK stack therefore uses the default VPC directly, with no `DBSubnetGroup`.
+- Do we keep jobs already created under the `demo-user` prefix? Proposal: no, they're test data.
+
+## Progress log
+- 2026-11-09 Efren: plan drafted. RDS probe passed in us-east-1: created `db.t3.micro` PostgreSQL 18.3 (default VPC, no subnet group needed), connected over TLS from a laptop IP allowed by a security group, round-tripped a row (`gen_random_uuid()` works), stopped, deleted, and removed the security group. Then opt-in RDS in CDK: `database` stack prop / `-c withDb=true -c dbClientCidr=<ip>/32`, `MP_WITH_DB=true` in `deploy-checkpoint.sh`, no `VpcId`/subnet group (default VPC, like the probe, which avoids `Vpc.fromLookup` writing account details to `cdk.context.json`). Validator warnings W1011/W9011 acknowledged on purpose. 14 CDK tests + `npm run verify` green; not deployed yet. Then backend data layer: JPA + Flyway `V1__users.sql` (lowercase-username CHECK, unique), `UserAccount` entity with app-generated UUID, `UserAccountRepository`, `TestcontainersConfiguration` (`postgres:18-alpine`, `@ServiceConnection`) imported by the full-context tests. `./mvnw verify` green: 28 tests. Then backend auth: `SecurityConfig` (stateless, HS256 resource server, JSON 401 entry point), `AuthController`/`AuthService` (signup 201/409, login 401 with a dummy-hash compare so unknown users and wrong passwords look alike), `JwtCurrentUser` replaced `DemoCurrentUser`, `mp.demo-user-id` removed, new contracts `auth-credentials.request.json` and `auth-token.response.json`. `AuthControllerTest` covers forged/expired/foreign-issuer tokens and Alice-vs-Bob isolation. Spring Security's firewall now answers encoded-slash job IDs with 400 (was 404). `./mvnw verify` green: 43 tests. Then frontend: `session.ts` (`SessionStore` over sessionStorage, drops expired/corrupt sessions), `api.ts` adds the Bearer header and on 401 for a logged-in request clears the session and returns to login, `AuthForm` (login/signup toggle), `App` shows the uploader only when logged in, with logout. Frontend lint/test (18)/build/format green. Local smoke test (Docker Postgres + real S3 bucket, backend on :8081 because :8080 is taken by an unrelated httpd): Flyway applied V1 on startup; signup 201, case-insensitive login 200, unknown user 401, upload without token 401, upload as carol 201 with the presigned key under her UUID, status QUEUED, Bob gets 404 for her job, forged token 401. Docs: `.env.example` (MP_JWT_SECRET, MP_DB_PASSWORD, MP_DB_URL), SETUP.md Docker prerequisite. Live check against RDS: `MP_WITH_DB=true scripts/deploy-checkpoint.sh` created `mp-efren-db` (db.t3.micro, PostgreSQL 18.3, 20 GB, single-AZ, encrypted; SG 5432 from one /32 only). Backend ran locally against it over TLS; Flyway applied V1. Alice/Bob demo: signup 201 x2, duplicate 409, login 200, Alice's PNG uploaded via presigned PUT and reached COMPLETE in ~10 s (labels, SAFE, thumbnail), original under `uploads/<alice-uuid>/`, Bob 404 on her job, no token 401. Redeployed without `MP_WITH_DB`: DB and its SG deleted, no DB instances left. Next: push + PR; mark ✅ once CI is green.
+
+## Outcome notes

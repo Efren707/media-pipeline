@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from uuid import UUID
 
@@ -110,7 +111,22 @@ def main() -> None:
     if job_status["state"] not in ALLOWED_STATES:
         raise AssertionError("job-status response contains an unknown state")
 
-    print("Validated 5 JSON contract examples.")
+    credentials = load("api/auth-credentials.request.json")
+    require(credentials, {"username", "password"}, "api/auth-credentials.request.json")
+    if not re.fullmatch(r"[A-Za-z0-9_]{3,32}", credentials["username"]) or not (
+        8 <= len(credentials["password"]) <= 72
+    ):
+        raise AssertionError("credentials example breaks the username or password rules")
+
+    token = load("api/auth-token.response.json")
+    require(
+        token, {"tokenType", "accessToken", "expiresAt", "user"}, "api/auth-token.response.json"
+    )
+    require(token["user"], {"id", "username"}, "api/auth-token.response.json user")
+    if token["tokenType"] != "Bearer":
+        raise AssertionError("token example must use tokenType Bearer")
+
+    print("Validated 7 JSON contract examples.")
 
 
 if __name__ == "__main__":

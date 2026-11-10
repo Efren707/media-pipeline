@@ -15,6 +15,7 @@ Install these, then run the check command for each.
 | AWS CLI | v2 | `aws --version` | Talking to the sandbox |
 | AWS CDK CLI | 2.x | `cdk --version` | Deploying infrastructure. Install with `npm install -g aws-cdk` |
 | GitHub CLI | any (optional) | `gh --version` | PRs and issues from the terminal |
+| Docker Desktop | any (running) | `docker info` | Backend tests start a throwaway PostgreSQL with Testcontainers (Phase 7) |
 
 > Python 3.13+ also works locally, but write Lambda code for **3.12**, the runtime we deploy to.
 
@@ -28,7 +29,7 @@ Install these, then run the check command for each.
    ```
 3. Create your personal config (untracked):
    ```bash
-   cp .env.example .env    # then set MP_OWNER (e.g. efren / fahad) and MP_EMAIL
+   cp .env.example .env    # then set MP_OWNER (e.g. efren / fahad), MP_EMAIL, MP_JWT_SECRET and MP_DB_PASSWORD
    ```
 4. Never commit to `main` directly (branch protection blocks it anyway). Start work on a branch (see §6):
    ```bash
@@ -86,7 +87,7 @@ We tested each service in Efren's sandbox. **Key finding: there is no `LabRole`.
 | API Gateway | ❌ `AccessDenied` on create | Spring Boot on EC2 behind an Application Load Balancer |
 | SQS | ❌ `AccessDenied` | Lambda auto-retry + a Spring Boot watchdog for stuck jobs |
 | ECR | ⏭️ Not tested (not needed) | Zip + layer Lambda deploys |
-| RDS | Listed as allowed, not tested yet | n/a |
+| RDS | ✅ Allowed (tested 2026-11-09 from the lab login): create/stop/delete a `db.t3.micro` PostgreSQL 18.3 in the default VPC, a security group for port 5432, and a public TLS connection from a laptop IP | n/a |
 
 ### Pre-made roles (IAM is read-only; we can't create roles)
 

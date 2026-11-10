@@ -183,3 +183,85 @@ button:disabled {
   justify-content: space-between;
   gap: 16px;
 }
+
+/* Phase 7: login / signup */
+.auth-page {
+  max-width: 420px;
+  padding-top: 12vh;
+  text-align: center;
+}
+
+.auth-page .auth {
+  margin: 24px auto 0;
+  text-align: left;
+}
+
+.navbar {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.navbar-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 10px 16px;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+button.secondary {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.auth {
+  display: grid;
+  gap: 12px;
+  max-width: 360px;
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.auth label {
+  display: grid;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.auth input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.auth button[type='submit'] {
+  justify-self: start;
+}
+
+.notice {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface);
+}
+
+button.link {
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+}

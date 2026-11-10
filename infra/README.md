@@ -53,6 +53,21 @@ aws s3 cp path/to/imagenet-labels.txt "s3://$MEDIA_BUCKET/models/imagenet-labels
 
 The browser and manifests cannot choose these keys. Do not place model files under `uploads/`.
 
+## Optional PostgreSQL (Phase 7)
+
+The database is opt-in, so a normal deploy stays S3 + Lambda only and costs nothing while idle. To include it:
+
+```bash
+# .env: MP_DB_PASSWORD=<16+ letters and digits>
+MP_WITH_DB=true scripts/deploy-checkpoint.sh
+```
+
+This adds one `db.t3.micro` PostgreSQL 18 instance (`mp-<owner>-db`, 20 GB gp2, single-AZ, encrypted, no backups) in the default VPC, plus a security group that opens port 5432 to your current public IP (`/32`) only. The password is a `NoEcho` CloudFormation parameter, so it never appears in the template. The `DbEndpoint` output is the host for `MP_DB_URL`.
+
+**Cost:** about $0.017/hour while running, plus storage while stopped. At `/wrap-up`, redeploy **without** `MP_WITH_DB`; that deletes the instance and its data (`DeletionPolicy: Delete`, no final snapshot). If your IP changes, rerun the deploy with `MP_WITH_DB=true` to update the security group.
+
+Synth acknowledges two CloudFormation validator warnings on purpose: the public endpoint (W9011, needed until the backend runs on EC2 in Phase 10) and the parameter-based password (W1011, since SSM write access is unproven in the sandbox).
+
 ## Optional resource teardown
 
 The guarded teardown script removes the deployed checkpoint stack and demo data only. It never removes the repository:

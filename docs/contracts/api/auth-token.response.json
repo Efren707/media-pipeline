@@ -1,0 +1,9 @@
+{
+  "tokenType": "Bearer",
+  "accessToken": "eyJhbGciOiJIUzI1NiJ9.redacted.redacted",
+  "expiresAt": "2026-11-09T13:00:00Z",
+  "user": {
+    "id": "3f2b8c1e-9d4a-4e2b-8f61-0c7d5a9e1b42",
+    "username": "alice"
+  }
+}

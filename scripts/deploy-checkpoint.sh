@@ -29,10 +29,25 @@ aws s3api put-bucket-encryption \
   --server-side-encryption-configuration \
   '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'
 
+# Phase 7: MP_WITH_DB=true adds RDS PostgreSQL. A later deploy without it DELETES the database.
+DB_ARGS=()
+if [[ "${MP_WITH_DB:-false}" == "true" ]]; then
+  if [[ -z "${MP_DB_PASSWORD:-}" && -f "$REPOSITORY_ROOT/.env" ]]; then
+    MP_DB_PASSWORD="$(sed -n 's/^MP_DB_PASSWORD=//p' "$REPOSITORY_ROOT/.env" | tr -d '\r')"
+  fi
+  : "${MP_DB_PASSWORD:?Set MP_DB_PASSWORD (16+ letters and digits) in .env}"
+  CLIENT_IP="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
+  DB_ARGS=(-c withDb=true -c "dbClientCidr=${CLIENT_IP}/32" --parameters "DbPassword=${MP_DB_PASSWORD}")
+  echo "Including RDS; port 5432 open to ${CLIENT_IP}/32 only."
+fi
+
 cd "$REPOSITORY_ROOT/infra"
 npm ci
 npm run verify
-npx cdk deploy "MediaPipeline-${MP_OWNER}" --require-approval never
+npx cdk deploy "MediaPipeline-${MP_OWNER}" --require-approval never "${DB_ARGS[@]}"
 
 echo "Checkpoint infrastructure deployed."
 echo "Media bucket: mp-${MP_OWNER}-media-${ACCOUNT_ID}"
+if [[ ${#DB_ARGS[@]} -gt 0 ]]; then
+  echo "Database endpoint: see the DbEndpoint stack output. Stop or remove it at /wrap-up."
+fi

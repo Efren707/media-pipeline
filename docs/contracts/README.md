@@ -11,6 +11,8 @@ The example files were defined in **Phase 1 (Design finalization)**:
 | `api/create-upload.request.json` | React upload client | Spring Boot upload endpoint |
 | `api/create-upload.response.json` | Spring Boot upload endpoint | React upload client and backend tests |
 | `api/job-status.response.json` | Spring Boot status endpoint | React polling client and backend tests |
+| `api/auth-credentials.request.json` | React signup/login forms (Phase 7) | `POST /api/auth/signup` and `/login` |
+| `api/auth-token.response.json` | Spring Boot auth endpoints (Phase 7) | React auth client and backend tests |
 
 ## How they're used
 - **Lambda tests** (pytest) load the examples to check the output format.
