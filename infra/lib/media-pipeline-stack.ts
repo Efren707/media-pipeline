@@ -16,6 +16,7 @@ import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as rds from "aws-cdk-lib/aws-rds";
 import * as s3 from "aws-cdk-lib/aws-s3";
+import * as sns from "aws-cdk-lib/aws-sns";
 import { Construct } from "constructs";
 
 /** Opt-in PostgreSQL (Phase 7). Leave it out and the stack stays S3 + Lambda only. */
@@ -144,6 +145,31 @@ export class MediaPipelineStack extends Stack {
       }
     });
 
+    const resultsTopic = new sns.CfnTopic(this, "ResultsTopic", {
+      topicName: `${prefix}-results`
+    });
+    const resultsTopicPolicy = new sns.CfnTopicPolicy(this, "ResultsTopicPolicy", {
+      topics: [resultsTopic.ref],
+      policyDocument: {
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Sid: "AllowMediaBucketPublish",
+            Effect: "Allow",
+            Principal: { Service: "s3.amazonaws.com" },
+            Action: "sns:Publish",
+            Resource: resultsTopic.ref,
+            Condition: {
+              ArnEquals: {
+                "aws:SourceArn": `arn:${Stack.of(this).partition}:s3:::${this.mediaBucketName}`
+              },
+              StringEquals: { "aws:SourceAccount": account }
+            }
+          }
+        ]
+      }
+    });
+
     const lambdaRole = iam.Role.fromRoleName(
       this,
       "ImportedLambdaRunRole",
@@ -255,10 +281,22 @@ export class MediaPipelineStack extends Stack {
             }
           }
         }
+      ],
+      topicConfigurations: [
+        {
+          event: "s3:ObjectCreated:*",
+          topic: resultsTopic.ref,
+          filter: {
+            s3Key: {
+              rules: [{ name: "prefix", value: "results/" }]
+            }
+          }
+        }
       ]
     };
     mediaBucket.addResourceDependency(allowS3Invoke);
     mediaBucket.addResourceDependency(allowS3InvokeAnalyze);
+    mediaBucket.addResourceDependency(resultsTopicPolicy);
 
     new CfnOutput(this, "MediaBucketName", {
       value: mediaBucket.ref,
@@ -271,6 +309,10 @@ export class MediaPipelineStack extends Stack {
     new CfnOutput(this, "AnalyzeFunctionName", {
       value: analyzeFunction.functionName,
       description: "Analyze-stage Lambda function"
+    });
+    new CfnOutput(this, "ResultsTopicArn", {
+      value: resultsTopic.ref,
+      description: "SNS topic receiving completed result-object events"
     });
 
     if (props.database) {
