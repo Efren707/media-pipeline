@@ -111,7 +111,7 @@ git commit -m "feat: publish completed results to SNS"
 - Modify: `.github/workflows/ci.yml` only if the existing script-test discovery does not pick up the new file automatically.
 
 **Interfaces:**
-- Consumes: executable `scripts/subscribe-user-notifications.sh`, `MP_OWNER`, `AWS_REGION`, an interactive email line on standard input, and a positional UUID `userId`.
+- Consumes: `scripts/subscribe-user-notifications.sh` through `bash`, `MP_OWNER`, `AWS_REGION`, an interactive email line on standard input, and a positional UUID `userId`.
 - Produces: exit code `0` after a safely pre-filtered subscription request or confirmed-subscription update; exit code `2` for local validation/session errors; no email in standard output or standard error.
 
 - [ ] **Step 1: Add failing script tests with a fake AWS executable**
