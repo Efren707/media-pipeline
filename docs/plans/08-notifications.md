@@ -45,7 +45,7 @@ Out of scope: automatic subscription during signup, custom HTML email content, S
 1. Start the Academy lab and verify `aws sts get-caller-identity` contains `assumed-role/voclabs/`.
 2. Deploy with `MP_OWNER=<owner> scripts/deploy-checkpoint.sh` and upload the trusted Analyze model assets if the stack is new.
 3. Create two users. Copy each `user.id` UUID from the signup response; do not commit it.
-4. Run `scripts/subscribe-user-notifications.sh <user-id>` for each user. Enter the matching email only at the hidden prompt.
+4. Run `bash scripts/subscribe-user-notifications.sh <user-id>` for each user. Enter the matching email only at the hidden prompt.
 5. Do not process uploads while subscriptions are being configured. Confirm both AWS Subscription Confirmation emails, then rerun the command for each user so the filter is reapplied to the confirmed subscription.
 6. Continue to hold uploads for up to 15 minutes while the SNS filter policy takes effect.
 7. Complete one upload as each user. Verify each inbox receives only its matching `results/{userId}/...` S3 event.
