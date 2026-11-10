@@ -15,6 +15,7 @@ Install these, then run the check command for each.
 | AWS CLI | v2 | `aws --version` | Talking to the sandbox |
 | AWS CDK CLI | 2.x | `cdk --version` | Deploying infrastructure. Install with `npm install -g aws-cdk` |
 | GitHub CLI | any (optional) | `gh --version` | PRs and issues from the terminal |
+| Docker Desktop | any (running) | `docker info` | Backend tests start a throwaway PostgreSQL with Testcontainers (Phase 7) |
 
 > Python 3.13+ also works locally, but write Lambda code for **3.12**, the runtime we deploy to.
 
@@ -28,7 +29,7 @@ Install these, then run the check command for each.
    ```
 3. Create your personal config (untracked):
    ```bash
-   cp .env.example .env    # then set MP_OWNER (e.g. efren / fahad) and MP_EMAIL
+   cp .env.example .env    # then set MP_OWNER (e.g. efren / fahad), MP_EMAIL, MP_JWT_SECRET and MP_DB_PASSWORD
    ```
 4. Never commit to `main` directly (branch protection blocks it anyway). Start work on a branch (see §6):
    ```bash
