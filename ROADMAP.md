@@ -6,12 +6,12 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 > Update this at the end of every work session (`/wrap-up`). Read it first when starting one (`/start-session`). **Edit only your own block**, so parallel branches merge without conflicts.
 
-**Active phase:** deadline-rescue Phase 5 Analyze demo; live AWS verification is next
+**Active phase:** Phases 6 and 7 are done (Phase 7 auth live-verified against RDS); next is Phase 8 notifications
 
 #### Efren (updated 2026-11-09)
-- **Working on:** first live Analyze deploy in my sandbox; COMPLETE/FLAGGED/FAILED verified on AWS with UI screenshots in `docs/evidence/phase-5/`
-- **Next:** pick up the next task toward the Nov 16 presentation
-- **Blockers:** none
+- **Working on:** merged #17 (Phase 5 evidence), #18 (Phase 6 watchdog), #20 (Phase 7: opt-in RDS, JWT signup/login, per-user isolation, React login + navbar) and #21 (Phase 7 ✅)
+- **Next:** Phase 8 notifications (SNS subscription at signup, per-user filter); agree on the split with Fahad
+- **Blockers:** none. `MediaPipeline-efren` is S3 + Lambda only (no RDS). Backend tests need Docker Desktop running
 
 #### Fahad (updated 2026-11-09)
 - **Working on:** secure Analyze Lambda, final-result API, and React demo dashboard on `feat/analyze-stage`
@@ -48,7 +48,7 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | 4 | [Validate stage](#4-validate-stage) | M2 | Oct 16 | Fahad | ✅ | [plan](docs/plans/04-validate-stage.md) |
 | 🏁 | **M2 Checkpoint**: upload → validate → thumbnail + status | | **Oct 19** | | | |
 | 5 | [Analyze stage (AI)](#5-analyze-stage-ai) | M3 | Oct 26 | Fahad | 🔨 | [plan](docs/plans/05-analyze-stage.md) |
-| 6 | [Failure handling & retries](#6-failure-handling--retries) | M3 | Nov 11 | Efren | 🔨 | [plan](docs/plans/06-failure-handling.md) |
+| 6 | [Failure handling & retries](#6-failure-handling--retries) | M3 | Nov 11 | Efren | ✅ | [plan](docs/plans/06-failure-handling.md) |
 | 7 | [Auth & users](#7-auth--users) | M3 | Nov 1 | Both | ✅ | [plan](docs/plans/07-auth-users.md) |
 | 🏁 | **M3 Core pipeline** | | **Nov 1** | | | |
 | 8 | [Notifications](#8-notifications) | M4 | Nov 3 | TBD | ⬜ | n/a |

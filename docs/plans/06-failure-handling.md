@@ -47,7 +47,7 @@ Every job ends in a final state the user can see. Today a job that runs out of L
 - [x] A job whose Lambda keeps failing shows `FAILED / PROCESSING_TIMEOUT` once its limit passes.
 - [x] Bad input still fails immediately with its specific code (regression check).
 - [x] The watchdog never changes a `COMPLETE`, `FLAGGED` or `FAILED` job.
-- [ ] Backend tests, Python tests and CI are green.
+- [x] Backend tests, Python tests and CI are green.
 
 ## Test / demo steps
 1. Start the API with a short limit: `MP_STALE_AFTER_QUEUED=1m MP_STALE_AFTER_PROCESSING=1m`.
@@ -61,3 +61,4 @@ Every job ends in a final state the user can see. Today a job that runs out of L
 ## Progress log
 - 2026-11-09 Efren: planned Phase 6 (read-time backend watchdog, D18). Implemented the watchdog with 6 new JUnit tests; `mvnw verify` passes (21 tests, Spotless clean). Next: live forced-failure demo.
 - 2026-11-09 Efren: live demo in `MediaPipeline-efren` with 1-minute limits. An upload that was never sent became `FAILED / UPLOAD_NOT_RECEIVED`. With the model parked, Analyze failed with `AccessDenied` (missing key without `s3:ListBucket`, D15), Lambda retried, and the watchdog wrote `FAILED / PROCESSING_TIMEOUT` to S3. Model restored. Lambda code is unchanged, so immediate `UNSUPPORTED_FORMAT` (verified earlier the same day) still applies. Remaining: CI green on the PR.
+- 2026-11-09 Efren: Phase 6 merged (#18) with CI green, after the Phase 5 live evidence (#17). Next: Phase 12 presentation prep or the Phase 9 gallery.
