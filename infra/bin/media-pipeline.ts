@@ -29,10 +29,19 @@ const corsOrigins = (process.env.MP_CORS_ORIGINS ?? "http://localhost:5173")
   .filter(Boolean);
 
 const app = new cdk.App();
+
+// Phase 7: RDS only when asked for, e.g. `cdk deploy -c withDb=true -c dbClientCidr=1.2.3.4/32`.
+const withDb = String(app.node.tryGetContext("withDb") ?? "false") === "true";
+const dbClientCidr = app.node.tryGetContext("dbClientCidr");
+if (withDb && !dbClientCidr) {
+  throw new Error("withDb=true needs -c dbClientCidr=<your public IPv4>/32.");
+}
+
 new MediaPipelineStack(app, `MediaPipeline-${owner}`, {
   env: { account, region },
   owner,
   corsOrigins,
+  database: withDb ? { clientCidr: String(dbClientCidr) } : undefined,
   synthesizer: new cdk.CliCredentialsStackSynthesizer({
     fileAssetsBucketName: `media-pipeline-cdk-assets-${account}`,
     bucketPrefix: "assets/"

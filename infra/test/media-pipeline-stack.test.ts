@@ -91,6 +91,12 @@ describe("MediaPipelineStack", () => {
     });
   });
 
+  test("creates no database resources unless asked to", () => {
+    template.resourceCountIs("AWS::RDS::DBInstance", 0);
+    template.resourceCountIs("AWS::EC2::SecurityGroup", 0);
+    expect(template.toJSON().Parameters?.DbPassword).toBeUndefined();
+  });
+
   test("builds the Lambda asset before CDK tests in the verify command", () => {
     const packageJson = JSON.parse(
       readFileSync(path.resolve(__dirname, "../package.json"), "utf8")
@@ -105,4 +111,68 @@ describe("MediaPipelineStack", () => {
     expect(validatePackageIndex).toBeLessThan(testIndex);
     expect(analyzePackageIndex).toBeLessThan(testIndex);
   });
+});
+
+describe("MediaPipelineStack with the opt-in database", () => {
+  const build = (clientCidr: string) =>
+    new MediaPipelineStack(new App(), "DbStack", {
+      env: { account: "123456789012", region: "us-east-1" },
+      owner: "testuser",
+      corsOrigins: ["http://localhost:5173"],
+      database: { clientCidr }
+    });
+  const template = Template.fromStack(build("203.0.113.7/32"));
+
+  test("creates one small, single-AZ, disposable PostgreSQL instance", () => {
+    template.resourceCountIs("AWS::RDS::DBInstance", 1);
+    template.hasResourceProperties("AWS::RDS::DBInstance", {
+      DBInstanceIdentifier: "mp-testuser-db",
+      Engine: "postgres",
+      DBInstanceClass: "db.t3.micro",
+      AllocatedStorage: "20",
+      StorageType: "gp2",
+      StorageEncrypted: true,
+      MultiAZ: false,
+      BackupRetentionPeriod: 0,
+      DeletionProtection: false,
+      MasterUserPassword: { Ref: "DbPassword" }
+    });
+    template.hasResource("AWS::RDS::DBInstance", {
+      DeletionPolicy: "Delete",
+      UpdateReplacePolicy: "Delete"
+    });
+  });
+
+  test("keeps the password out of the template", () => {
+    expect(template.toJSON().Parameters.DbPassword).toMatchObject({
+      Type: "String",
+      NoEcho: true
+    });
+  });
+
+  test("allows PostgreSQL only from the one client address", () => {
+    template.resourceCountIs("AWS::EC2::SecurityGroup", 1);
+    template.hasResourceProperties("AWS::EC2::SecurityGroup", {
+      SecurityGroupIngress: [
+        Match.objectLike({
+          IpProtocol: "tcp",
+          FromPort: 5432,
+          ToPort: 5432,
+          CidrIp: "203.0.113.7/32"
+        })
+      ]
+    });
+  });
+
+  test("still creates no IAM roles or NAT gateway", () => {
+    template.resourceCountIs("AWS::IAM::Role", 0);
+    template.resourceCountIs("AWS::EC2::NatGateway", 0);
+  });
+
+  test.each(["0.0.0.0/0", "203.0.113.0/24", "203.0.113.7", "not-an-ip/32"])(
+    "rejects client CIDR %s",
+    (cidr) => {
+      expect(() => build(cidr)).toThrow(/dbClientCidr/);
+    }
+  );
 });

@@ -40,7 +40,7 @@ Replace the Phase 3 demo user with real accounts. Users sign up and log in throu
 
 ## Tasks
 - [x] **Sandbox probe:** create, connect to, stop and delete a `db.t3.micro` Postgres via the CLI. Record the result in SETUP.md §4's service table (currently "not tested yet"). (Both)
-- [ ] **Infra:** opt-in RDS (`withDb` context): DB subnet group on the default VPC subnets, security group, `CfnDBInstance`, `NoEcho` password parameter, endpoint output. `cdk synth` must still contain no `AWS::IAM::Role`. Add CDK tests for both flag states. (Both)
+- [x] **Infra:** opt-in RDS (`withDb` context): default VPC with no subnet group (as in the probe), security group, `CfnDBInstance`, `NoEcho` password parameter, endpoint output. `cdk synth` must still contain no `AWS::IAM::Role`. Add CDK tests for both flag states. (Both)
 - [ ] **Backend data layer:** Postgres driver, Spring Data JPA, Flyway `V1__users.sql` (`id uuid pk`, `username unique`, `password_hash`, `created_at`), and a Testcontainers base test. (Both)
 - [ ] **Backend auth:** `SecurityConfig` (stateless, JWT resource server, `/api/auth/**` open, everything else authenticated); `AuthController` signup/login with validation (username pattern, password ≥ 8); `JwtCurrentUser` replaces `DemoCurrentUser`; drop `mp.demo-user-id`; 401/409 errors through `ApiErrorHandler`. (Both)
 - [ ] **Backend isolation tests:** user A can't read user B's job status or result (404, not 403, so job IDs don't leak); unauthenticated requests get 401. (Both)
@@ -56,19 +56,19 @@ Replace the Phase 3 demo user with real accounts. Users sign up and log in throu
 - [ ] Backend tests (including Testcontainers), frontend tests, CDK tests, linters and CI are green.
 
 ## Test / demo steps
-1. `cdk deploy -c withDb=true -c dbClientCidr=<my-ip>/32 --parameters DbPassword=$MP_DB_PASSWORD`, and copy the `DbEndpoint` output into `MP_DB_URL`.
+1. `MP_WITH_DB=true scripts/deploy-checkpoint.sh` (reads `MP_DB_PASSWORD` from `.env`, opens 5432 to your current IP), and copy the `DbEndpoint` output into `MP_DB_URL`.
 2. Start the backend and frontend locally against RDS.
 3. Sign up as `alice`, upload a photo, and wait for `COMPLETED`.
 4. In a private window, sign up as `bob`. Bob's dashboard is empty. Calling Alice's job ID with Bob's token returns 404.
 5. Call `curl /api/jobs/...` with no token and get 401.
 6. Check S3: Alice's objects are under `uploads/<alice-uuid>/` only.
-7. Run `/wrap-up`: redeploy without `withDb` (or `cdk destroy`) and confirm no DB instance is left.
+7. Run `/wrap-up`: redeploy without `MP_WITH_DB` (or `cdk destroy`) and confirm no DB instance is left.
 
 ## Open questions
-- ~~Does the Academy sandbox let us create RDS and security groups in the default VPC?~~ Yes (probe, 2026-11-09). Whether CloudFormation can create `AWS::RDS::DBSubnetGroup` is still unproven; if not, use the default VPC's implicit subnet group (the probe needed none).
+- ~~Does the Academy sandbox let us create RDS and security groups in the default VPC?~~ Yes (probe, 2026-11-09). The CDK stack therefore uses the default VPC directly, with no `DBSubnetGroup`.
 - Do we keep jobs already created under the `demo-user` prefix? Proposal: no, they're test data.
 
 ## Progress log
-- 2026-11-09 Efren: plan drafted. RDS probe passed in us-east-1: created `db.t3.micro` PostgreSQL 18.3 (default VPC, no subnet group needed), connected over TLS from a laptop IP allowed by a security group, round-tripped a row (`gen_random_uuid()` works), stopped, deleted, and removed the security group. Next: opt-in RDS in CDK.
+- 2026-11-09 Efren: plan drafted. RDS probe passed in us-east-1: created `db.t3.micro` PostgreSQL 18.3 (default VPC, no subnet group needed), connected over TLS from a laptop IP allowed by a security group, round-tripped a row (`gen_random_uuid()` works), stopped, deleted, and removed the security group. Then opt-in RDS in CDK: `database` stack prop / `-c withDb=true -c dbClientCidr=<ip>/32`, `MP_WITH_DB=true` in `deploy-checkpoint.sh`, no `VpcId`/subnet group (default VPC, like the probe, which avoids `Vpc.fromLookup` writing account details to `cdk.context.json`). Validator warnings W1011/W9011 acknowledged on purpose. 14 CDK tests + `npm run verify` green; not deployed yet. Next: backend data layer (start Docker Desktop for Testcontainers).
 
 ## Outcome notes
