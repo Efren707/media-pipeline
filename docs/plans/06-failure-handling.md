@@ -40,13 +40,13 @@ Every job ends in a final state the user can see. Today a job that runs out of L
 - [x] `JobService.findJob`: apply the watchdog before building the response (Efren)
 - [x] JUnit tests: stale → `FAILED`; fresh → unchanged; final → unchanged; ETag conflict → re-read (Efren)
 - [x] Update `docs/media_pipeline.md` §9 with the new error codes (Efren)
-- [ ] Live forced-failure demo in the sandbox and screenshots (Efren)
+- [x] Live forced-failure demo in the sandbox (Efren); UI screenshots optional
 
 ## Acceptance criteria
-- [ ] A job whose upload never arrives shows `FAILED / UPLOAD_NOT_RECEIVED` once its limit passes.
-- [ ] A job whose Lambda keeps failing shows `FAILED / PROCESSING_TIMEOUT` once its limit passes.
-- [ ] Bad input still fails immediately with its specific code (regression check).
-- [ ] The watchdog never changes a `COMPLETE`, `FLAGGED` or `FAILED` job.
+- [x] A job whose upload never arrives shows `FAILED / UPLOAD_NOT_RECEIVED` once its limit passes.
+- [x] A job whose Lambda keeps failing shows `FAILED / PROCESSING_TIMEOUT` once its limit passes.
+- [x] Bad input still fails immediately with its specific code (regression check).
+- [x] The watchdog never changes a `COMPLETE`, `FLAGGED` or `FAILED` job.
 - [ ] Backend tests, Python tests and CI are green.
 
 ## Test / demo steps
@@ -60,3 +60,4 @@ Every job ends in a final state the user can see. Today a job that runs out of L
 
 ## Progress log
 - 2026-11-09 Efren: planned Phase 6 (read-time backend watchdog, D18). Implemented the watchdog with 6 new JUnit tests; `mvnw verify` passes (21 tests, Spotless clean). Next: live forced-failure demo.
+- 2026-11-09 Efren: live demo in `MediaPipeline-efren` with 1-minute limits. An upload that was never sent became `FAILED / UPLOAD_NOT_RECEIVED`. With the model parked, Analyze failed with `AccessDenied` (missing key without `s3:ListBucket`, D15), Lambda retried, and the watchdog wrote `FAILED / PROCESSING_TIMEOUT` to S3. Model restored. Lambda code is unchanged, so immediate `UNSUPPORTED_FORMAT` (verified earlier the same day) still applies. Remaining: CI green on the PR.
