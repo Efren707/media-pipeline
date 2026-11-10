@@ -68,13 +68,13 @@ Complete the smallest secure, demonstrable AWS pipeline: upload → validate →
 
 ## Demo evidence checklist
 
-- [ ] CloudFormation stack resources show the private bucket plus Validate and Analyze Lambdas
-- [ ] Valid image reaches `COMPLETE`, displays a thumbnail and top labels
-- [ ] Restricted-label test reaches `FLAGGED` and displays its review category
-- [ ] Invalid or mislabeled file reaches `FAILED` with a safe error
-- [ ] S3 shows matching `status/`, `thumbnails/`, `stage/analyze/`, and `results/` objects
-- [ ] CloudWatch logs show the job ID without credentials, URLs, or image content
-- [ ] Record a backup screen capture after the live walkthrough works
+- [x] CloudFormation stack resources show the private bucket plus Validate and Analyze Lambdas
+- [x] Valid image reaches `COMPLETE`, displays a thumbnail and top labels ([screenshot](../evidence/phase-5/dog_validation.png))
+- [x] Restricted-label test reaches `FLAGGED` and displays its review category ([screenshot](../evidence/phase-5/weapon_warning.png))
+- [x] Invalid or mislabeled file reaches `FAILED` with a safe error ([screenshot](../evidence/phase-5/not_an_image_handling.png))
+- [x] S3 shows matching `status/`, `thumbnails/`, `stage/analyze/`, and `results/` objects
+- [x] CloudWatch logs show the job ID without credentials, URLs, or image content
+- [x] Record a backup screen capture after the live walkthrough works (kept outside git; ask Efren)
 
 ## Remaining risks
 
@@ -85,6 +85,7 @@ Complete the smallest secure, demonstrable AWS pipeline: upload → validate →
 ## Progress log
 
 - 2026-11-09 Fahad: implemented and locally verified the deadline-rescue vertical slice; live Academy deployment and screenshots remain.
+- 2026-11-09 Efren: first live deploy of `MediaPipeline-efren` in the Academy sandbox (`deploy-checkpoint.sh`, template check clean). Model assets: ONNX Model Zoo `squeezenet1.1-7.onnx` + PyTorch Hub `imagenet_classes.txt` (1,000 lines, one name per line). Results: Wikipedia dog photo → `COMPLETE` (golden retriever); two revolver photos → `FLAGGED` (weapons, ~0.99); text file named `.jpg` → `FAILED` (`UNSUPPORTED_FORMAT`). A beer-bottle photo stayed `SAFE` because `beer bottle` scored 0.10 < the 0.20 threshold, a good talking point. Analyze cold start ~1.6 s, warm ~0.27 s. No credentials or URLs in either log group. UI walkthrough screenshots are in `docs/evidence/phase-5/`. The backup video is kept outside git. Local tip: if port 8080 is taken (e.g. by Apache), run the backend with `SERVER_PORT=8081` and the UI with `MP_API_URL=http://localhost:8081`.
 
 ## Outcome notes
 
