@@ -137,7 +137,7 @@ Until Phase 7 adds login, the backend acts as one configured demo user.
 - Permanent validation failures: write `FAILED` with `UNSUPPORTED_FORMAT`, `FILE_TOO_LARGE`, `INVALID_IMAGE`, or another stable code; do not retry.
 - Temporary AWS/runtime failures: raise the error and let asynchronous Lambda retry.
 - Duplicate and overlapping events: use ETag-bound reads plus conditional writes; accept matching existing artifacts and never overwrite outputs or regress a later status.
-- Stuck jobs: the later Spring Boot watchdog marks jobs that have not changed within the configured time as `FAILED` with `PROCESSING_TIMEOUT`.
+- Stuck jobs (D18): when `GET /api/jobs/{id}` reads a job that has been in a non-final state longer than `mp.stale-after.*` (15 minutes by default), the API writes `FAILED` with `If-Match` on the ETag it read. A job stuck in `QUEUED` gets `UPLOAD_NOT_RECEIVED`; one stuck in `VALIDATING`, `READY_FOR_ANALYSIS` or `ANALYZING` gets `PROCESSING_TIMEOUT`. If a Lambda changes the status first, the write fails and the API re-reads; `FAILED` from the watchdog likewise makes a late Lambda's own `If-Match` write fail, so the final state never changes twice. The check runs only when a job is read; there is no background sweep.
 - Operators diagnose unexpected failures with CloudWatch logs using the job ID.
 
 ## 10. Cost and lifecycle

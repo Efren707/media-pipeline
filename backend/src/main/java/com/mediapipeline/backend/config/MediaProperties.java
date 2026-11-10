@@ -1,5 +1,6 @@
 package com.mediapipeline.backend.config;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -17,4 +18,9 @@ public record MediaProperties(
     @NotBlank String awsRegion,
     @NotBlank @Pattern(regexp = "[A-Za-z0-9_-]{1,64}") String demoUserId,
     @NotNull Duration presignTtl,
-    @Positive long maxUploadBytes) {}
+    @Positive long maxUploadBytes,
+    @NotNull @Valid StaleAfter staleAfter) {
+
+  /** How long a job may sit in a non-final state before the API marks it FAILED (D18). */
+  public record StaleAfter(@NotNull Duration queued, @NotNull Duration processing) {}
+}

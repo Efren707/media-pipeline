@@ -42,6 +42,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -190,7 +191,10 @@ class JobControllerTest {
 
   @Test
   void getJobReturnsContractFieldsWithThumbnailUrl() throws Exception {
-    stubStatus(Files.readString(CONTRACTS.resolve("../status.example.json")));
+    // Use the test clock's time, so the watchdog doesn't treat the example as stuck.
+    stubStatus(
+        Files.readString(CONTRACTS.resolve("../status.example.json"))
+            .replace("2026-10-13T15:00:00Z", "2026-10-14T12:00:00Z"));
 
     String body =
         mvc.perform(get("/api/jobs/" + JOB_ID))
@@ -329,7 +333,124 @@ class JobControllerTest {
     verify(s3, never()).getObjectAsBytes(any(GetObjectRequest.class));
   }
 
+  // --- read-time watchdog (D18); test clock is 2026-10-14T12:00:00Z, limits are 15 min ---
+
+  @Test
+  void watchdogFailsJobStuckInProcessingWithIfMatch() throws Exception {
+    stubVersionedStatus(statusJson("ANALYZING", "2026-10-14T11:44:00Z"), "\"etag-1\"");
+
+    mvc.perform(get("/api/jobs/" + JOB_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.state").value("FAILED"))
+        .andExpect(jsonPath("$.thumbnailUrl").isEmpty())
+        .andExpect(jsonPath("$.error.code").value("PROCESSING_TIMEOUT"));
+
+    ArgumentCaptor<PutObjectRequest> put = ArgumentCaptor.forClass(PutObjectRequest.class);
+    ArgumentCaptor<RequestBody> putBody = ArgumentCaptor.forClass(RequestBody.class);
+    verify(s3).putObject(put.capture(), putBody.capture());
+    assertThat(put.getValue().key()).isEqualTo("status/demo-user/" + JOB_ID + ".json");
+    assertThat(put.getValue().ifMatch()).isEqualTo("\"etag-1\"");
+    JsonNode written = json.readTree(read(putBody.getValue()));
+    assertThat(written.get("state").asString()).isEqualTo("FAILED");
+    assertThat(written.get("error").get("code").asString()).isEqualTo("PROCESSING_TIMEOUT");
+    assertThat(written.get("updatedAt").asString()).isEqualTo("2026-10-14T12:00:00Z");
+    assertThat(written.get("sourceETag").asString()).isEqualTo("abc");
+    assertThat(fieldNames(written)).isEqualTo(contractFields("../status.example.json"));
+  }
+
+  @Test
+  void watchdogFailsQueuedJobWhoseUploadNeverArrived() throws Exception {
+    stubVersionedStatus(statusJson("QUEUED", "2026-10-14T11:30:00Z"), "\"etag-1\"");
+
+    mvc.perform(get("/api/jobs/" + JOB_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.state").value("FAILED"))
+        .andExpect(jsonPath("$.error.code").value("UPLOAD_NOT_RECEIVED"));
+    verify(s3).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+  }
+
+  @Test
+  void watchdogLeavesFreshJobAlone() throws Exception {
+    stubVersionedStatus(statusJson("ANALYZING", "2026-10-14T11:50:00Z"), "\"etag-1\"");
+
+    mvc.perform(get("/api/jobs/" + JOB_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.state").value("ANALYZING"));
+    verify(s3, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+  }
+
+  @Test
+  void watchdogNeverTouchesFinalStates() throws Exception {
+    stubVersionedStatus(
+        """
+        {"schemaVersion":"1.0","jobId":"%s","userId":"demo-user","state":"FAILED",
+         "sourceKey":"uploads/demo-user/%s.jpg","sourceETag":"abc","thumbnailKey":null,
+         "resultKey":null,"updatedAt":"2026-10-01T00:00:00Z",
+         "error":{"code":"INVALID_IMAGE","message":"The file is not a readable image."}}
+        """
+            .formatted(JOB_ID, JOB_ID),
+        "\"etag-1\"");
+
+    mvc.perform(get("/api/jobs/" + JOB_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.error.code").value("INVALID_IMAGE"));
+    verify(s3, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+  }
+
+  @Test
+  void watchdogYieldsWhenLambdaWritesFirst() throws Exception {
+    String failedByLambda =
+        """
+        {"schemaVersion":"1.0","jobId":"%s","userId":"demo-user","state":"FAILED",
+         "sourceKey":"uploads/demo-user/%s.jpg","sourceETag":"abc","thumbnailKey":null,
+         "resultKey":null,"updatedAt":"2026-10-14T11:59:59Z",
+         "error":{"code":"SOURCE_CHANGED","message":"The uploaded image changed."}}
+        """
+            .formatted(JOB_ID, JOB_ID);
+    when(s3.getObjectAsBytes(any(GetObjectRequest.class)))
+        .thenReturn(
+            versioned(statusJson("ANALYZING", "2026-10-14T11:00:00Z"), "\"etag-1\""),
+            versioned(failedByLambda, "\"etag-2\""));
+    when(s3.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+        .thenThrow(S3Exception.builder().statusCode(412).message("Precondition Failed").build());
+
+    mvc.perform(get("/api/jobs/" + JOB_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.state").value("FAILED"))
+        .andExpect(jsonPath("$.error.code").value("SOURCE_CHANGED"));
+    verify(s3, times(1)).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+  }
+
+  @Test
+  void watchdogSkipsWriteWhenStatusHasNoEtag() throws Exception {
+    stubStatus(statusJson("ANALYZING", "2026-10-14T11:00:00Z"));
+
+    mvc.perform(get("/api/jobs/" + JOB_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.state").value("ANALYZING"));
+    verify(s3, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
+  }
+
   // --- helpers ---
+
+  private static String statusJson(String state, String updatedAt) {
+    return """
+        {"schemaVersion":"1.0","jobId":"%s","userId":"demo-user","state":"%s",
+         "sourceKey":"uploads/demo-user/%s.jpg","sourceETag":"abc",
+         "thumbnailKey":"thumbnails/demo-user/%s.jpg","resultKey":null,
+         "updatedAt":"%s","error":null}
+        """
+        .formatted(JOB_ID, state, JOB_ID, JOB_ID, updatedAt);
+  }
+
+  private static ResponseBytes<GetObjectResponse> versioned(String statusJson, String etag) {
+    return ResponseBytes.fromByteArray(
+        GetObjectResponse.builder().eTag(etag).build(), statusJson.getBytes());
+  }
+
+  private void stubVersionedStatus(String statusJson, String etag) {
+    when(s3.getObjectAsBytes(any(GetObjectRequest.class))).thenReturn(versioned(statusJson, etag));
+  }
 
   private void stubStatus(String statusJson) {
     when(s3.getObjectAsBytes(any(GetObjectRequest.class)))

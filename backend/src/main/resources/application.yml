@@ -11,3 +11,7 @@ mp:
   presign-ttl: 5m
   # Must match MAX_IMAGE_BYTES in the Validate Lambda.
   max-upload-bytes: 10485760
+  # Watchdog limits (D18). Above the worst case: 5 min presign TTL; Analyze 3 x 120 s + retry waits.
+  stale-after:
+    queued: ${MP_STALE_AFTER_QUEUED:15m}
+    processing: ${MP_STALE_AFTER_PROCESSING:15m}

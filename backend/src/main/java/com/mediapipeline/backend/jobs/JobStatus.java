@@ -29,6 +29,21 @@ record JobStatus(
         SCHEMA_VERSION, jobId, userId, "QUEUED", sourceKey, null, null, null, updatedAt, null);
   }
 
+  /** A copy of this status moved to {@code FAILED}; every other field is kept. */
+  JobStatus failed(Error failure, String failedAt) {
+    return new JobStatus(
+        schemaVersion,
+        jobId,
+        userId,
+        "FAILED",
+        sourceKey,
+        sourceETag,
+        thumbnailKey,
+        resultKey,
+        failedAt,
+        failure);
+  }
+
   @JsonIgnoreProperties(ignoreUnknown = true)
   record Error(String code, String message) {}
 }
