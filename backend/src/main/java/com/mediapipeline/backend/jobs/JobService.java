@@ -119,9 +119,7 @@ class JobService {
   private String thumbnailUrl(String userId, JobStatus status) {
     String key = status.thumbnailKey();
     String expectedKey = "thumbnails/" + userId + "/" + status.jobId() + ".jpg";
-    if (key == null
-        || "FAILED".equals(status.state())
-        || !key.equals(expectedKey)) {
+    if (key == null || "FAILED".equals(status.state()) || !key.equals(expectedKey)) {
       return null;
     }
     return presigner

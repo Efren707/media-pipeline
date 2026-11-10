@@ -28,11 +28,7 @@ final class JobDtos {
   /** Stored Analyze output. Identity fields are checked before exposing the result. */
   @JsonIgnoreProperties(ignoreUnknown = true)
   record ResultDocument(
-      String jobId,
-      String userId,
-      String modelVersion,
-      List<Label> labels,
-      Moderation moderation) {
+      String jobId, String userId, String modelVersion, List<Label> labels, Moderation moderation) {
     AnalysisResult toResponse() {
       return new AnalysisResult(modelVersion, labels, moderation);
     }

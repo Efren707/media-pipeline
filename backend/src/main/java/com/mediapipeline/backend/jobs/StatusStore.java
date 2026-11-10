@@ -62,10 +62,7 @@ class StatusStore {
   Optional<ResultDocument> findResult(String userId, String jobId) {
     try {
       GetObjectRequest request =
-          GetObjectRequest.builder()
-              .bucket(bucket)
-              .key(resultKey(userId, jobId))
-              .build();
+          GetObjectRequest.builder().bucket(bucket).key(resultKey(userId, jobId)).build();
       byte[] body = s3.getObjectAsBytes(request).asByteArray();
       ResultDocument result = json.readValue(body, ResultDocument.class);
       if (!jobId.equals(result.jobId()) || !userId.equals(result.userId())) {

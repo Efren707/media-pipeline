@@ -342,7 +342,8 @@ class JobControllerTest {
     when(s3.getObjectAsBytes(any(GetObjectRequest.class)))
         .thenReturn(
             ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), statusJson.getBytes()),
-            ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), resultJson.getBytes()));
+            ResponseBytes.fromByteArray(
+                GetObjectResponse.builder().build(), resultJson.getBytes()));
   }
 
   private JsonNode contract(String name) throws IOException {
