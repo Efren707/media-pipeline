@@ -29,10 +29,15 @@ export MP_MEDIA_BUCKET=$(aws cloudformation describe-stacks --stack-name MediaPi
 | `MP_MEDIA_BUCKET` | required | Stack output `MediaBucketName` |
 | `AWS_REGION` | `us-east-1` | |
 | `MP_DEMO_USER` | `demo-user` | Stand-in user until Phase 7 |
+| `MP_DB_URL` | `jdbc:postgresql://localhost:5432/mediapipeline` | `jdbc:postgresql://<DbEndpoint>:5432/mediapipeline?sslmode=require` for RDS ([infra README](../infra/README.md#optional-postgresql-phase-7)) |
+| `MP_DB_USER` | `mpadmin` | |
+| `MP_DB_PASSWORD` | empty | Same value as in `.env` |
+
+Flyway applies `src/main/resources/db/migration` at startup, and Hibernate only validates the schema (`ddl-auto: validate`). To change the schema, add a new `V<n>__*.sql`; never edit one that has been applied.
 
 ## Develop
 
 ```bash
-./mvnw verify            # tests + Spotless check (what CI runs); no AWS needed
+./mvnw verify            # tests + Spotless check (what CI runs); no AWS needed, Docker Desktop must be running
 ./mvnw spotless:apply    # format (google-java-format)
 ```

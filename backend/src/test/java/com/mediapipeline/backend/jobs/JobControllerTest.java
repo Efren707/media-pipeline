@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.mediapipeline.backend.TestcontainersConfiguration;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -28,6 +29,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -49,6 +51,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest(properties = {"mp.media-bucket=mp-test-media-bucket", "mp.demo-user-id=demo-user"})
 @AutoConfigureMockMvc
+@Import(TestcontainersConfiguration.class)
 class JobControllerTest {
 
   private static final String JOB_ID = "550e8400-e29b-41d4-a716-446655440000";
