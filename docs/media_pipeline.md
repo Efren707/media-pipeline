@@ -120,6 +120,8 @@ The API always derives the S3 user prefix from the authenticated account. A call
 
 **Authentication (Phase 7, D5).** Signup and login take `{username, password}` ([`auth-credentials.request.json`](contracts/api/auth-credentials.request.json)) and return `{tokenType: "Bearer", accessToken, expiresAt, user: {id, username}}` ([`auth-token.response.json`](contracts/api/auth-token.response.json)). Usernames are 3–32 letters, digits or `_` and are case-insensitive (stored lowercase). Passwords are 8–72 characters and stored only as BCrypt hashes in the PostgreSQL `users` table. The access token is an HS256 JWT signed with `MP_JWT_SECRET`, issuer `media-pipeline`, valid for 60 minutes, with no refresh token. Its subject is `users.id`, a server-generated UUID, and that is the `{userId}` in every S3 key. Every other endpoint needs `Authorization: Bearer <token>`. Errors: `400 INVALID_REQUEST`, `409 USERNAME_TAKEN`, `401 INVALID_CREDENTIALS` (the same for an unknown user and a wrong password), and `401 UNAUTHORIZED` for a missing, expired or forged token. The React app keeps the token in `sessionStorage`.
 
+**Notifications (Phase 8, D19).** Creating `results/{userId}/{jobId}.json` makes S3 publish its event to the results SNS topic. An operator with temporary Academy credentials runs `bash scripts/subscribe-user-notifications.sh {userId}`, enters the email interactively, and confirms the AWS email. The creation request includes the exact `results/{userId}/` message-body filter; rerunning the helper after confirmation reapplies it with a fail-closed update sequence. Neither the backend nor EC2 or Lambda runtime roles publish to or manage SNS. Do not process uploads during subscription setup or for up to 15 minutes afterward while the SNS filter policy propagates.
+
 ## 8. Security design
 
 - The media bucket blocks all public access, disables ACLs with bucket-owner enforcement, uses S3-managed encryption, and rejects insecure transport.
@@ -128,6 +130,8 @@ The API always derives the S3 user prefix from the authenticated account. A call
 - Original images and results remain private. The backend provides short-lived GET URLs after checking ownership.
 - Validation enforces byte size, decoded format, dimensions, and safe key syntax. Thumbnail re-encoding removes EXIF and embedded metadata.
 - Logs contain job IDs and safe error codes, not credentials, presigned URLs, image bytes, tokens, or personal email addresses.
+- Subscription email addresses are entered only at the operator prompt and are never written to `.env`, logs, command arguments, or the repository.
+- The SNS topic policy permits only S3 `Publish` from the exact media-bucket ARN and current AWS account; subscriber filters are exact user-result prefixes.
 - Secrets and temporary Academy credentials stay in local untracked files. They are never placed in Lambda environment variables or committed.
 - The Academy-provided roles are broader than ideal. This is a documented sandbox exception; separate per-owner buckets and strict application-level prefix checks reduce exposure.
 - CDK synthesis fails CI if a template contains `AWS::IAM::Role` or `AWS::EC2::NatGateway`.

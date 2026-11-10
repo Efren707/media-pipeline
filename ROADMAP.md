@@ -6,17 +6,17 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 > Update this at the end of every work session (`/wrap-up`). Read it first when starting one (`/start-session`). **Edit only your own block**, so parallel branches merge without conflicts.
 
-**Active phase:** Phases 6 and 7 are done (Phase 7 auth live-verified against RDS); next is Phase 8 notifications
+**Active phase:** Phase 8 notification implementation is locally verified; live two-user AWS isolation proof is pending
 
 #### Efren (updated 2026-11-09)
 - **Working on:** merged #17 (Phase 5 evidence), #18 (Phase 6 watchdog), #20 (Phase 7: opt-in RDS, JWT signup/login, per-user isolation, React login + navbar) and #21 (Phase 7 ✅)
 - **Next:** Phase 8 notifications (SNS subscription at signup, per-user filter); agree on the split with Fahad
 - **Blockers:** none. `MediaPipeline-efren` is S3 + Lambda only (no RDS). Backend tests need Docker Desktop running
 
-#### Fahad (updated 2026-11-09)
-- **Working on:** secure Analyze Lambda, final-result API, and React demo dashboard on `feat/analyze-stage`
-- **Next:** upload model assets, deploy in an active Academy lab, capture valid/flagged/invalid evidence, and open the PR
-- **Blockers:** live AWS proof needs temporary Academy credentials; local Maven verification needs Maven Central or GitHub CI
+#### Fahad (updated 2026-11-10)
+- **Working on:** Phase 8 filtered SNS notifications on `feat/demo-first-completion`
+- **Next:** deploy in an active Academy lab, confirm two demo subscriptions, capture two-user isolation evidence, and open the PR
+- **Blockers:** live proof needs fresh temporary Academy credentials and access to two confirmation inboxes; local Maven verification needs Maven Central or GitHub CI
 
 ---
 
@@ -51,7 +51,7 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | 6 | [Failure handling & retries](#6-failure-handling--retries) | M3 | Nov 11 | Efren | ✅ | [plan](docs/plans/06-failure-handling.md) |
 | 7 | [Auth & users](#7-auth--users) | M3 | Nov 1 | Both | ✅ | [plan](docs/plans/07-auth-users.md) |
 | 🏁 | **M3 Core pipeline** | | **Nov 1** | | | |
-| 8 | [Notifications](#8-notifications) | M4 | Nov 3 | TBD | ⬜ | n/a |
+| 8 | [Notifications](#8-notifications) | M4 | Nov 3 | Fahad | 🔨 | [plan](docs/plans/08-notifications.md) |
 | 9 | [Status dashboard, gallery & search](#9-status-dashboard-gallery--search) | M4 | Nov 7 | TBD | ⬜ | n/a |
 | 10 | [Cloud deployment](#10-cloud-deployment) | M4 | Nov 9 | TBD | ⬜ | n/a |
 | 🏁 | **M4 Feature complete** | | **Nov 10** | | | |
@@ -179,8 +179,8 @@ Record significant design choices in [`docs/decisions.md`](docs/decisions.md).
 
 ### 8. Notifications
 **Goal:** users get emailed when their upload finishes.
-- An SNS email subscription with a per-user filter policy, created at signup
-- Handle confirmation, since users must confirm the SNS subscription
+- An operator-created SNS email subscription with a per-user filter policy (the approved Academy fallback)
+- Handle email confirmation and rerun the helper to apply the filter to the confirmed subscription
 - Stretch: friendlier email content
 
 **Depends on:** 2, 7

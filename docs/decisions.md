@@ -100,3 +100,9 @@ Most of D1–D8 come from the sandbox service tests in [SETUP.md §4](../SETUP.m
 - **Date:** 2026-11-09
 - **Why:** Permanent errors already end in `FAILED`, but a job stays in a non-final state forever if its Lambda runs out of retries, times out or crashes, or if its upload never arrives. When `GET /api/jobs/{id}` reads such a job past a configurable limit, the API conditionally writes `FAILED` with `UPLOAD_NOT_RECEIVED` or `PROCESSING_TIMEOUT`, using `If-Match` (D15) so it can't overwrite a final state that lands at the same moment. It is free, adds no AWS resources, and runs only while someone is checking the job, which fits the no-24/7 rule (D12).
 - **Alternatives:** Lambda async failure destinations to S3 plus a third "failure recorder" Lambda (immediate, but new infrastructure, unproven in the sandbox, and it misses uploads that never arrive); a scheduled `@Scheduled` sweep (catches jobs nobody is polling, but adds S3 listing and a background thread).
+
+### D19: Operator-confirmed SNS subscriptions for the Academy demo
+- **Date:** 2026-11-10
+- **Replaces:** automatic SNS subscription during signup in the full Phase 8 scope; S3-to-SNS and per-user filtering from D4 remain unchanged.
+- **Why:** The deployed `myS3Role` backend and `lambda-run-role` functions cannot manage SNS, and storing a learner's temporary credentials in the application would be unsafe. An operator instead runs a guarded helper with active Academy credentials, enters the address interactively, completes AWS email confirmation, and installs an exact `results/{userId}/` message-body filter. This uses the Roadmap's approved Phase 8 fallback without granting the application broader permissions or exposing subscriber addresses.
+- **Alternatives:** automatic signup subscription (runtime role is denied and confirmation is still required); one unfiltered topic subscription (leaks other users' event metadata); SES (blocked in the sandbox).

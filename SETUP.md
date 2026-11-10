@@ -29,7 +29,7 @@ Install these, then run the check command for each.
    ```
 3. Create your personal config (untracked):
    ```bash
-   cp .env.example .env    # then set MP_OWNER (e.g. efren / fahad), MP_EMAIL, MP_JWT_SECRET and MP_DB_PASSWORD
+   cp .env.example .env    # then set MP_OWNER (e.g. efren / fahad), MP_JWT_SECRET and MP_DB_PASSWORD
    ```
 4. Never commit to `main` directly (branch protection blocks it anyway). Start work on a branch (see §6):
    ```bash
@@ -105,6 +105,20 @@ We tested each service in Efren's sandbox. **Key finding: there is no `LabRole`.
 - S3 `results/` prefix → SNS topic → email, **filtered per user**. A subscription filter policy (`FilterPolicyScope: MessageBody`) on the object key prefix `results/<user>/` sends each user only their own jobs.
 - Lambda accepts 3008 MB memory, a 120 s timeout and 2 GB of `/tmp`, and Lambda layers can be published.
 - Lambda account concurrency is **1000** (the standard AWS default), so there's no special sandbox cap on parallel runs.
+
+### Phase 8 notification setup
+
+After deploying the stack, create each demo user's filtered email subscription from the repository root:
+
+```bash
+bash scripts/subscribe-user-notifications.sh <user-id>
+```
+
+Use the canonical lowercase UUID returned as `user.id` by signup. The helper prompts for the email address without displaying it, verifies that the active AWS identity is an Academy `voclabs` session, and discovers the results topic from the stack output. Do not add an email address to `.env` or pass it on the command line.
+
+Do not process uploads while setting up subscriptions. Open the AWS Subscription Confirmation email, confirm it, and rerun the same command. The second run reuses the confirmed subscription and applies the message-body filter for exactly `results/<user-id>/`. Continue to hold uploads for up to 15 minutes while the filter policy takes effect, then run the two-user test. An unconfirmed subscription receives nothing and does not block the pipeline itself.
+
+For proof, subscribe two test users, complete one upload as each, and verify that each inbox receives only its own S3 result event. Redact email addresses, account IDs, credentials, JWTs, and presigned URLs from screenshots.
 
 ### Design rules that follow from this
 

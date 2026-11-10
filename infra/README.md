@@ -6,6 +6,7 @@ TypeScript AWS CDK app for the sandbox-compatible Media Pipeline. The current ch
 - a TLS-only bucket policy, narrow CORS configuration, and 30-day demo-data lifecycle;
 - the Python 3.12 Validate and Analyze Lambdas using the existing `lambda-run-role`;
 - prefix-scoped S3 event notifications for `uploads/` and `stage/analyze/`;
+- one results SNS topic, a source-restricted topic policy, and an S3 notification for `results/`;
 - explicit S3 invoke permissions and one-week CloudWatch log groups.
 
 It deliberately creates no IAM role and no NAT Gateway.
@@ -52,6 +53,18 @@ aws s3 cp path/to/imagenet-labels.txt "s3://$MEDIA_BUCKET/models/imagenet-labels
 ```
 
 The browser and manifests cannot choose these keys. Do not place model files under `uploads/`.
+
+## Phase 8 filtered email subscriptions
+
+With the stack deployed and temporary Academy credentials active, run from the repository root:
+
+```bash
+bash scripts/subscribe-user-notifications.sh <user-id>
+```
+
+The user ID is the canonical lowercase UUID returned as `user.id` by signup. Enter the email only at the prompt; do not store it in `.env`. Do not process uploads during setup. Confirm the subscription email, then rerun the command so the helper can reuse the confirmed subscription and reapply the exact `results/<user-id>/` message-body filter. Continue to hold uploads while SNS propagates the filter change, which can take up to 15 minutes.
+
+The helper refuses non-`voclabs` identities. The deployed backend and Lambdas never receive SNS-management permission or email addresses. An unconfirmed subscription has no effect on the media pipeline.
 
 ## Optional PostgreSQL (Phase 7)
 
