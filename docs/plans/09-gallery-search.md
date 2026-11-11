@@ -53,5 +53,6 @@ After login, a user sees all of their uploads in one gallery, including live sta
 
 ## Progress log
 - 2026-11-10 Efren: planned Phase 9 from the demo-first spec. S3 filtering over the bounded set recorded as D21; ROADMAP §9 wording updated. Next: contract + backend PR.
+- 2026-11-10 Efren: built `GET /api/jobs` (contract `job-list.response.json`, D21 bounded scan, watchdog, skip malformed/mismatched files) and the React gallery (load after login, debounced label search, state badges, retry). Backend 52 tests, frontend 23, contracts 8, lint/build/format green. Sandbox had been reset, so I redeployed `MediaPipeline-efren` (S3 + Lambdas + SNS, no RDS) and re-uploaded the model. Local smoke test (backend :8081 against Docker Postgres :5433, Vite :5173): signup 201, empty list, PNG upload reached COMPLETE with thumbnail, list returned it, label search matched case-insensitively, a miss returned 0, `limit=0` returned 400, and a request with no token returned 401. Efren checked the UI in the browser. Next: two-user isolation check in the browser, then mark ✅.
 
 ## Outcome notes
