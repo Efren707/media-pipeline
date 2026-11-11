@@ -44,6 +44,13 @@ if (withServer && !sshCidr) {
   throw new Error("withServer=true needs -c sshCidr=<your public IPv4>/32.");
 }
 
+// The demo is browsed through `ssh -L 8088:localhost:80` (D22), and the browser PUTs uploads
+// straight to S3, so the bucket must allow that origin while the server exists.
+const DEMO_TUNNEL_ORIGIN = "http://localhost:8088";
+if (withServer && !corsOrigins.includes(DEMO_TUNNEL_ORIGIN)) {
+  corsOrigins.push(DEMO_TUNNEL_ORIGIN);
+}
+
 new MediaPipelineStack(app, `MediaPipeline-${owner}`, {
   env: { account, region },
   owner,
