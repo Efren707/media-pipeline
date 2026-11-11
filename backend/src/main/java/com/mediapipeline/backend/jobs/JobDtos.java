@@ -43,4 +43,7 @@ final class JobDtos {
       String updatedAt,
       AnalysisResult result,
       JobStatus.Error error) {}
+
+  /** {@code GET /api/jobs}. {@code truncated} means the user has more jobs than were scanned. */
+  record JobListResponse(List<JobStatusResponse> items, boolean truncated) {}
 }

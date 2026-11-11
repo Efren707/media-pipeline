@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { authenticate, getJob, RequestError, setUnauthorizedHandler } from './api'
+import { authenticate, getJob, listJobs, RequestError, setUnauthorizedHandler } from './api'
+import jobListExample from '../../docs/contracts/api/job-list.response.json'
 import { sessionStore } from './session'
 
 const tokenResponse = {
@@ -75,5 +76,20 @@ describe('api auth handling', () => {
     })
     expect(unauthorized).not.toHaveBeenCalled()
     expect(sessionStore.get()).toBeNull()
+  })
+
+  it('lists jobs with the token, the limit and a trimmed label', async () => {
+    sessionStore.save(tokenResponse)
+    fetchMock.mockResolvedValue(jsonResponse(200, jobListExample))
+
+    const page = await listJobs('  tabby CAT ')
+    expect(page.items[0].result?.labels[0].name).toBe('tabby cat')
+    expect(page.truncated).toBe(false)
+    const [path, init] = fetchMock.mock.calls[0]
+    expect(path).toBe('/api/jobs?limit=100&label=tabby+CAT')
+    expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer token-123')
+
+    await listJobs('   ')
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/jobs?limit=100')
   })
 })

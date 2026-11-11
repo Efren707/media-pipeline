@@ -22,7 +22,12 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,9 +49,12 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -446,7 +454,252 @@ class JobControllerTest {
     verify(s3, never()).putObject(any(PutObjectRequest.class), any(RequestBody.class));
   }
 
+  // --- GET /api/jobs (Phase 9, D21) ---
+
+  private static final String JOB_A = "11111111-1111-4111-8111-111111111111";
+  private static final String JOB_B = "22222222-2222-4222-8222-222222222222";
+  private static final String JOB_C = "33333333-3333-4333-8333-333333333333";
+
+  @Test
+  void listJobsReturnsNewestFirstWithContractFields() throws Exception {
+    Map<String, String> bucket = new LinkedHashMap<>();
+    putStatus(bucket, JOB_A, "READY_FOR_ANALYSIS", "2026-10-14T11:58:00Z");
+    putComplete(bucket, JOB_B, "2026-10-14T11:59:00Z", "tabby cat");
+    putStatus(bucket, JOB_C, "QUEUED", "2026-10-14T11:57:00Z");
+    stubBucket(bucket);
+
+    String body =
+        mvc.perform(get("/api/jobs"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control", "no-store"))
+            .andExpect(jsonPath("$.truncated").value(false))
+            .andExpect(jsonPath("$.items[0].jobId").value(JOB_B))
+            .andExpect(jsonPath("$.items[0].result.labels[0].name").value("tabby cat"))
+            .andExpect(jsonPath("$.items[1].jobId").value(JOB_A))
+            .andExpect(jsonPath("$.items[2].jobId").value(JOB_C))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    JsonNode response = json.readTree(body);
+    assertThat(fieldNames(response)).isEqualTo(contractFields("job-list.response.json"));
+    assertThat(fieldNames(response.get("items").get(0)))
+        .isEqualTo(fieldNames(contract("job-list.response.json").get("items").get(0)))
+        .isEqualTo(contractFields("job-status.response.json"));
+    assertThat(URI.create(response.get("items").get(0).get("thumbnailUrl").asString()).getPath())
+        .isEqualTo("/thumbnails/demo-user/" + JOB_B + ".jpg");
+
+    ArgumentCaptor<ListObjectsV2Request> list = ArgumentCaptor.forClass(ListObjectsV2Request.class);
+    verify(s3).listObjectsV2(list.capture());
+    assertThat(list.getValue().bucket()).isEqualTo("mp-test-media-bucket");
+    assertThat(list.getValue().prefix()).isEqualTo("status/demo-user/");
+  }
+
+  @Test
+  void listJobsFiltersByLabelCaseInsensitively() throws Exception {
+    Map<String, String> bucket = new LinkedHashMap<>();
+    putComplete(bucket, JOB_A, "2026-10-14T11:58:00Z", "tabby cat");
+    putComplete(bucket, JOB_B, "2026-10-14T11:59:00Z", "golden retriever");
+    putStatus(bucket, JOB_C, "ANALYZING", "2026-10-14T11:59:30Z");
+    stubBucket(bucket);
+
+    mvc.perform(get("/api/jobs").param("label", "  CAT "))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].jobId").value(JOB_A));
+    mvc.perform(get("/api/jobs").param("label", "zebra"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0));
+  }
+
+  @Test
+  void listJobsAppliesLimitAfterSorting() throws Exception {
+    Map<String, String> bucket = new LinkedHashMap<>();
+    putStatus(bucket, JOB_A, "QUEUED", "2026-10-14T11:57:00Z");
+    putStatus(bucket, JOB_B, "QUEUED", "2026-10-14T11:59:00Z");
+    putStatus(bucket, JOB_C, "QUEUED", "2026-10-14T11:58:00Z");
+    stubBucket(bucket);
+
+    mvc.perform(get("/api/jobs").param("limit", "2"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].jobId").value(JOB_B))
+        .andExpect(jsonPath("$.items[1].jobId").value(JOB_C))
+        .andExpect(jsonPath("$.truncated").value(false));
+  }
+
+  @Test
+  void listJobsSkipsMalformedMismatchedAndUnexpectedKeys() throws Exception {
+    Map<String, String> bucket = new LinkedHashMap<>();
+    putStatus(bucket, JOB_A, "QUEUED", "2026-10-14T11:59:00Z");
+    bucket.put("status/demo-user/" + JOB_B + ".json", "{not json");
+    bucket.put(
+        "status/demo-user/" + JOB_C + ".json",
+        statusJsonFor(JOB_C, "QUEUED", "2026-10-14T11:59:00Z").replace("demo-user", "other-user"));
+    bucket.put("status/demo-user/not-a-uuid.json", "{}");
+    bucket.put("status/demo-user/nested/" + JOB_A + ".json", "{}");
+    stubBucket(bucket);
+
+    mvc.perform(get("/api/jobs"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].jobId").value(JOB_A));
+    // Only the three well-formed <uuid>.json keys are read.
+    verify(s3, times(3)).getObjectAsBytes(any(GetObjectRequest.class));
+  }
+
+  @Test
+  void listJobsShowsJobWithUnreadableResultInsteadOfFailing() throws Exception {
+    Map<String, String> bucket = new LinkedHashMap<>();
+    putComplete(bucket, JOB_A, "2026-10-14T11:59:00Z", "tabby cat");
+    bucket.put("results/demo-user/" + JOB_A + ".json", "{not json");
+    stubBucket(bucket);
+
+    mvc.perform(get("/api/jobs"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].state").value("COMPLETE"))
+        .andExpect(jsonPath("$.items[0].result").isEmpty());
+  }
+
+  @Test
+  void listJobsFollowsS3Pages() throws Exception {
+    Map<String, String> bucket = new LinkedHashMap<>();
+    putStatus(bucket, JOB_A, "QUEUED", "2026-10-14T11:59:00Z");
+    putStatus(bucket, JOB_B, "QUEUED", "2026-10-14T11:58:00Z");
+    stubGets(bucket);
+    when(s3.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenReturn(page(List.of(JOB_A), "token-2"), page(List.of(JOB_B), null));
+
+    mvc.perform(get("/api/jobs"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.truncated").value(false));
+
+    ArgumentCaptor<ListObjectsV2Request> list = ArgumentCaptor.forClass(ListObjectsV2Request.class);
+    verify(s3, times(2)).listObjectsV2(list.capture());
+    assertThat(list.getAllValues().get(0).continuationToken()).isNull();
+    assertThat(list.getAllValues().get(1).continuationToken()).isEqualTo("token-2");
+  }
+
+  @Test
+  void listJobsStopsAfterOneHundredValidJobs() throws Exception {
+    Map<String, String> bucket = new LinkedHashMap<>();
+    List<String> firstPage = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      String id = UUID.nameUUIDFromBytes(("job-" + i).getBytes()).toString();
+      firstPage.add(id);
+      putStatus(bucket, id, "QUEUED", "2026-10-14T11:59:00Z");
+    }
+    String extra = UUID.nameUUIDFromBytes("extra".getBytes()).toString();
+    putStatus(bucket, extra, "QUEUED", "2026-10-14T11:59:00Z");
+    stubGets(bucket);
+    when(s3.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenReturn(page(firstPage, "token-2"), page(List.of(extra), null));
+
+    mvc.perform(get("/api/jobs").param("limit", "100"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(100))
+        .andExpect(jsonPath("$.truncated").value(true));
+    verify(s3, times(100)).getObjectAsBytes(any(GetObjectRequest.class));
+  }
+
+  @Test
+  void listJobsAppliesTheWatchdog() throws Exception {
+    Map<String, String> bucket = new LinkedHashMap<>();
+    putStatus(bucket, JOB_A, "ANALYZING", "2026-10-14T11:00:00Z");
+    stubBucket(bucket);
+
+    mvc.perform(get("/api/jobs"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].state").value("FAILED"))
+        .andExpect(jsonPath("$.items[0].error.code").value("PROCESSING_TIMEOUT"));
+    ArgumentCaptor<PutObjectRequest> put = ArgumentCaptor.forClass(PutObjectRequest.class);
+    verify(s3).putObject(put.capture(), any(RequestBody.class));
+    assertThat(put.getValue().ifMatch()).isEqualTo("\"etag-" + JOB_A + "\"");
+  }
+
+  @Test
+  void listJobsRejectsBadParametersWithoutCallingS3() throws Exception {
+    for (String limit : new String[] {"0", "101", "-1", "abc"}) {
+      mvc.perform(get("/api/jobs").param("limit", limit))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+    }
+    mvc.perform(get("/api/jobs").param("label", "x".repeat(65)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+    verify(s3, never()).listObjectsV2(any(ListObjectsV2Request.class));
+  }
+
   // --- helpers ---
+
+  private static String statusJsonFor(String jobId, String state, String updatedAt) {
+    return statusJson(state, updatedAt).replace(JOB_ID, jobId);
+  }
+
+  private static void putStatus(
+      Map<String, String> bucket, String jobId, String state, String updatedAt) {
+    bucket.put("status/demo-user/" + jobId + ".json", statusJsonFor(jobId, state, updatedAt));
+  }
+
+  private static void putComplete(
+      Map<String, String> bucket, String jobId, String updatedAt, String label) {
+    bucket.put(
+        "status/demo-user/" + jobId + ".json",
+        statusJsonFor(jobId, "COMPLETE", updatedAt)
+            .replace(
+                "\"resultKey\":null", "\"resultKey\":\"results/demo-user/" + jobId + ".json\""));
+    bucket.put(
+        "results/demo-user/" + jobId + ".json",
+        """
+        {"schemaVersion":"1.0","jobId":"%s","userId":"demo-user","modelVersion":"squeezenet1.1-7",
+         "labels":[{"name":"%s","confidence":0.9}],
+         "moderation":{"verdict":"SAFE","confidence":0.0,"categories":[]}}
+        """
+            .formatted(jobId, label));
+  }
+
+  /** A fake bucket: one listing page for the requested prefix, and GETs by exact key. */
+  private void stubBucket(Map<String, String> bucket) {
+    stubGets(bucket);
+    when(s3.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenAnswer(
+            call -> {
+              String prefix = call.<ListObjectsV2Request>getArgument(0).prefix();
+              List<S3Object> objects =
+                  bucket.keySet().stream()
+                      .filter(k -> k.startsWith(prefix))
+                      .map(k -> S3Object.builder().key(k).build())
+                      .toList();
+              return ListObjectsV2Response.builder().contents(objects).isTruncated(false).build();
+            });
+  }
+
+  private void stubGets(Map<String, String> bucket) {
+    when(s3.getObjectAsBytes(any(GetObjectRequest.class)))
+        .thenAnswer(
+            call -> {
+              String key = call.<GetObjectRequest>getArgument(0).key();
+              String body = bucket.get(key);
+              if (body == null) {
+                throw NoSuchKeyException.builder().message("missing").build();
+              }
+              String jobId = key.substring(key.lastIndexOf('/') + 1).replace(".json", "");
+              return ResponseBytes.fromByteArray(
+                  GetObjectResponse.builder().eTag("\"etag-" + jobId + "\"").build(),
+                  body.getBytes());
+            });
+  }
+
+  private static ListObjectsV2Response page(List<String> jobIds, String nextToken) {
+    return ListObjectsV2Response.builder()
+        .contents(
+            jobIds.stream()
+                .map(id -> S3Object.builder().key("status/demo-user/" + id + ".json").build())
+                .toList())
+        .isTruncated(nextToken != null)
+        .nextContinuationToken(nextToken)
+        .build();
+  }
 
   private static String statusJson(String state, String updatedAt) {
     return """

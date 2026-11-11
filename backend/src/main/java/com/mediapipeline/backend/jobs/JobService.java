@@ -4,12 +4,18 @@ import com.mediapipeline.backend.config.MediaProperties;
 import com.mediapipeline.backend.jobs.JobDtos.AnalysisResult;
 import com.mediapipeline.backend.jobs.JobDtos.CreateUploadRequest;
 import com.mediapipeline.backend.jobs.JobDtos.CreateUploadResponse;
+import com.mediapipeline.backend.jobs.JobDtos.JobListResponse;
 import com.mediapipeline.backend.jobs.JobDtos.JobStatusResponse;
 import com.mediapipeline.backend.jobs.JobDtos.UploadInstructions;
 import com.mediapipeline.backend.web.ApiException;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import tools.jackson.core.JacksonException;
 
 @Service
 class JobService {
@@ -28,6 +35,12 @@ class JobService {
 
   private static final Logger LOG = LoggerFactory.getLogger(JobService.class);
   private static final int WATCHDOG_ATTEMPTS = 3;
+
+  /** D21: a list request reads at most this many valid jobs, and {@code limit} can't exceed it. */
+  static final int MAX_SCANNED_JOBS = 100;
+
+  static final int DEFAULT_LIST_LIMIT = 25;
+  static final int MAX_LABEL_QUERY_LENGTH = 64;
 
   private final StatusStore statusStore;
   private final S3Presigner presigner;
@@ -107,6 +120,95 @@ class JobService {
   }
 
   /**
+   * The signed-in user's jobs, newest first (D21). Scans {@code status/{userId}/} until it has
+   * {@link #MAX_SCANNED_JOBS} valid jobs, applies the watchdog, sorts that bounded set, applies the
+   * optional case-insensitive label filter, then {@code limit}. Malformed or identity-mismatched
+   * status files are skipped.
+   */
+  JobListResponse listJobs(String userId, String label, Integer limit) {
+    int max = limit == null ? DEFAULT_LIST_LIMIT : limit;
+    if (max < 1 || max > MAX_SCANNED_JOBS) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST,
+          "INVALID_REQUEST",
+          "limit must be between 1 and %d.".formatted(MAX_SCANNED_JOBS));
+    }
+    String query = label == null ? "" : label.strip().toLowerCase(Locale.ROOT);
+    if (query.length() > MAX_LABEL_QUERY_LENGTH) {
+      throw new ApiException(
+          HttpStatus.BAD_REQUEST,
+          "INVALID_REQUEST",
+          "label must be %d characters or fewer.".formatted(MAX_LABEL_QUERY_LENGTH));
+    }
+
+    List<StatusStore.Versioned> scanned = new ArrayList<>();
+    boolean truncated = false;
+    String token = null;
+    scan:
+    do {
+      StatusStore.JobIdPage page = statusStore.listJobIds(userId, token, MAX_SCANNED_JOBS);
+      for (String jobId : page.jobIds()) {
+        if (!JOB_ID.matcher(jobId).matches()) {
+          continue;
+        }
+        if (scanned.size() == MAX_SCANNED_JOBS) {
+          truncated = true;
+          break scan;
+        }
+        readForList(userId, jobId).ifPresent(scanned::add);
+      }
+      token = page.nextToken();
+    } while (token != null);
+
+    // Sort before mapping: the stream is lazy, so only the jobs that end up in the response (or
+    // that the label filter has to look at) get a result read and a presigned URL.
+    List<JobStatus> newestFirst =
+        scanned.stream()
+            .map(this::failIfStale)
+            .sorted(
+                Comparator.comparing((JobStatus s) -> updatedAt(s.updatedAt()))
+                    .reversed()
+                    .thenComparing(JobStatus::jobId))
+            .toList();
+    List<JobStatusResponse> items =
+        newestFirst.stream()
+            .map(status -> toResponse(userId, status))
+            .filter(job -> query.isEmpty() || hasLabel(job, query))
+            .limit(max)
+            .toList();
+    return new JobListResponse(items, truncated);
+  }
+
+  private Optional<StatusStore.Versioned> readForList(String userId, String jobId) {
+    try {
+      Optional<StatusStore.Versioned> status = statusStore.findVersioned(userId, jobId);
+      if (status.isEmpty()) {
+        LOG.warn("{\"event\":\"job_list_skipped\",\"jobId\":\"{}\"}", jobId);
+      }
+      return status;
+    } catch (JacksonException e) {
+      LOG.warn("{\"event\":\"job_list_skipped\",\"jobId\":\"{}\"}", jobId);
+      return Optional.empty();
+    }
+  }
+
+  private static boolean hasLabel(JobStatusResponse job, String query) {
+    return job.result() != null
+        && job.result().labels() != null
+        && job.result().labels().stream()
+            .anyMatch(l -> l.name() != null && l.name().toLowerCase(Locale.ROOT).contains(query));
+  }
+
+  /** Unparseable timestamps sort last instead of failing the whole list. */
+  private static Instant updatedAt(String value) {
+    try {
+      return value == null ? Instant.EPOCH : Instant.parse(value);
+    } catch (DateTimeParseException e) {
+      return Instant.EPOCH;
+    }
+  }
+
+  /**
    * The read-time watchdog (D18). If the job has been in a non-final state too long, writes {@code
    * FAILED} with {@code If-Match}, so a final state a Lambda writes at the same moment is never
    * overwritten. If the ETag changed, re-reads and checks again.
@@ -153,10 +255,15 @@ class JobService {
         || !expectedKey.equals(status.resultKey())) {
       return null;
     }
-    return statusStore
-        .findResult(userId, status.jobId())
-        .map(JobDtos.ResultDocument::toResponse)
-        .orElse(null);
+    try {
+      return statusStore
+          .findResult(userId, status.jobId())
+          .map(JobDtos.ResultDocument::toResponse)
+          .orElse(null);
+    } catch (JacksonException e) {
+      LOG.warn("{\"event\":\"result_unreadable\",\"jobId\":\"{}\"}", status.jobId());
+      return null;
+    }
   }
 
   /** Only signs the exact thumbnail key derived from the authenticated user and job. */

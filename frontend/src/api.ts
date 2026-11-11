@@ -40,6 +40,12 @@ export interface JobStatusResponse {
   error: ApiError | null
 }
 
+/** job-list.response.json */
+export interface JobListResponse {
+  items: JobStatusResponse[]
+  truncated: boolean
+}
+
 export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 // Must match mp.max-upload-bytes in the backend.
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
@@ -105,6 +111,17 @@ export async function uploadImage(file: File): Promise<string> {
 
 export function getJob(jobId: string): Promise<JobStatusResponse> {
   return requestJson<JobStatusResponse>(`/api/jobs/${encodeURIComponent(jobId)}`)
+}
+
+/** The backend scans at most 100 jobs (D21), so asking for 100 shows all of them. */
+export const GALLERY_LIMIT = 100
+
+/** The signed-in user's jobs, newest first; `label` is a case-insensitive substring search. */
+export function listJobs(label = '', signal?: AbortSignal): Promise<JobListResponse> {
+  const params = new URLSearchParams({ limit: String(GALLERY_LIMIT) })
+  const query = label.trim()
+  if (query) params.set('label', query)
+  return requestJson<JobListResponse>(`/api/jobs?${params}`, { signal })
 }
 
 /** Creates the account (signup) or checks the password (login), then stores the session. */
