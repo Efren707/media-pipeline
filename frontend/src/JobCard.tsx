@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getJob, type JobState, type JobStatusResponse } from './api'
+import { jobTitle } from './gallery'
 import { isSettled } from './jobState'
 
 const POLL_MS = 2000
@@ -19,7 +20,10 @@ const LABELS: Record<JobState, string> = {
 
 interface Props {
   jobId: string
-  fileName: string
+  /** Known only for uploads made in this browser session. */
+  fileName?: string
+  /** The job as the gallery list returned it. A finished job is not polled again. */
+  initial?: JobStatusResponse
 }
 
 export function JobResult({ job }: { job: JobStatusResponse }) {
@@ -45,12 +49,14 @@ export function JobResult({ job }: { job: JobStatusResponse }) {
   )
 }
 
-export function JobCard({ jobId, fileName }: Props) {
-  const [job, setJob] = useState<JobStatusResponse | null>(null)
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null)
+export function JobCard({ jobId, fileName, initial }: Props) {
+  const [job, setJob] = useState<JobStatusResponse | null>(initial ?? null)
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(initial?.thumbnailUrl ?? null)
   const [timedOut, setTimedOut] = useState(false)
+  const settledAtStart = initial !== undefined && isSettled(initial.state)
 
   useEffect(() => {
+    if (settledAtStart) return
     let stopped = false
     let timer: ReturnType<typeof setTimeout>
     const startedAt = Date.now()
@@ -78,23 +84,23 @@ export function JobCard({ jobId, fileName }: Props) {
       stopped = true
       clearTimeout(timer)
     }
-  }, [jobId])
+  }, [jobId, settledAtStart])
 
   const state = job?.state ?? 'QUEUED'
   const failed = state === 'FAILED'
   const reached = isSettled(state) ? STEPS.length - 1 : STEPS.indexOf(state)
+  const title = jobTitle(fileName, job)
 
   return (
     <article className={`job ${failed ? 'job-failed' : ''}`}>
       <div className="thumb">
-        {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt={`Thumbnail of ${fileName}`} />
-        ) : (
-          <span>…</span>
-        )}
+        {thumbnailUrl ? <img src={thumbnailUrl} alt={`Thumbnail of ${title}`} /> : <span>…</span>}
       </div>
       <div className="details">
-        <strong>{fileName}</strong>
+        <div className="job-head">
+          <strong>{title}</strong>
+          <span className={`badge badge-${state.toLowerCase()}`}>{LABELS[state]}</span>
+        </div>
         <code className="muted">{jobId}</code>
         {failed ? (
           <p className="error">

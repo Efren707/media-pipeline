@@ -265,3 +265,54 @@ button.link {
   color: var(--accent);
   text-decoration: underline;
 }
+
+.job-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.8em;
+  background: var(--border);
+  color: var(--fg);
+}
+
+.badge-complete {
+  background: color-mix(in srgb, var(--ok) 20%, transparent);
+}
+
+.badge-flagged,
+.badge-failed {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+}
+
+.gallery {
+  margin-top: 32px;
+}
+
+.gallery-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gallery-head h2 {
+  margin: 0;
+}
+
+.gallery-head input {
+  flex: 1 1 200px;
+  max-width: 280px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
