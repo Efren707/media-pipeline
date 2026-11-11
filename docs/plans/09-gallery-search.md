@@ -27,8 +27,8 @@ After login, a user sees all of their uploads in one gallery, including live sta
 | Caching | `Cache-Control: no-store` | The response contains presigned URLs. |
 
 ## Tasks
-- [ ] Contract: `job-list.response.json` and its example, plus `media_pipeline.md` API section (Efren)
-- [ ] Backend: `StatusStore` paged listing of `status/{userId}/`; `JobService.listJobs(userId, label, limit)`; `GET /api/jobs` with param validation (400 on bad `limit`); tests for ordering, label filter, limit/truncation, malformed/mismatched skip, watchdog applied, Alice cannot see Bob (Efren)
+- [x] Contract: `job-list.response.json` and its example, plus `media_pipeline.md` API section (Efren)
+- [x] Backend: `StatusStore` paged listing of `status/{userId}/`; `JobService.listJobs(userId, label, limit)`; `GET /api/jobs` with param validation (400 on bad `limit`); tests for ordering, label filter, limit/truncation, malformed/mismatched skip, watchdog applied, Alice cannot see Bob (Efren)
 - [ ] Frontend: `listJobs()` in `api.ts`; `Gallery` grid that reuses `JobCard`; load on login; merge newly uploaded jobs; poll non-terminal items; debounced search; empty/error/retry states; clear the gallery on logout; tests (Efren)
 - [ ] Live check in an Academy lab, with sanitized evidence in the Progress log (Efren)
 

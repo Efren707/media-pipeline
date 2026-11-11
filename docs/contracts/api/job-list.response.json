@@ -1,0 +1,27 @@
+{
+  "items": [
+    {
+      "schemaVersion": "1.0",
+      "jobId": "550e8400-e29b-41d4-a716-446655440000",
+      "state": "COMPLETE",
+      "thumbnailUrl": "https://example.invalid/presigned-thumbnail-redacted",
+      "updatedAt": "2026-10-13T15:00:05Z",
+      "result": {
+        "modelVersion": "squeezenet1.1-7",
+        "labels": [
+          {
+            "name": "tabby cat",
+            "confidence": 0.86
+          }
+        ],
+        "moderation": {
+          "verdict": "SAFE",
+          "confidence": 0.0,
+          "categories": []
+        }
+      },
+      "error": null
+    }
+  ],
+  "truncated": false
+}

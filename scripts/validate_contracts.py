@@ -111,6 +111,15 @@ def main() -> None:
     if job_status["state"] not in ALLOWED_STATES:
         raise AssertionError("job-status response contains an unknown state")
 
+    job_list = load("api/job-list.response.json")
+    require(job_list, {"items", "truncated"}, "api/job-list.response.json")
+    if not isinstance(job_list["items"], list) or not isinstance(job_list["truncated"], bool):
+        raise AssertionError("job-list items must be a list and truncated a boolean")
+    for item in job_list["items"]:
+        require(item, set(job_status.keys()) | {"result"}, "api/job-list.response.json item")
+        if item["state"] not in ALLOWED_STATES:
+            raise AssertionError("job-list response contains an unknown state")
+
     credentials = load("api/auth-credentials.request.json")
     require(credentials, {"username", "password"}, "api/auth-credentials.request.json")
     if not re.fullmatch(r"[A-Za-z0-9_]{3,32}", credentials["username"]) or not (
@@ -126,7 +135,7 @@ def main() -> None:
     if token["tokenType"] != "Bearer":
         raise AssertionError("token example must use tokenType Bearer")
 
-    print("Validated 7 JSON contract examples.")
+    print("Validated 8 JSON contract examples.")
 
 
 if __name__ == "__main__":

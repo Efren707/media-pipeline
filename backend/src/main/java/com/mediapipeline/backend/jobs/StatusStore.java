@@ -2,6 +2,8 @@ package com.mediapipeline.backend.jobs;
 
 import com.mediapipeline.backend.config.MediaProperties;
 import com.mediapipeline.backend.jobs.JobDtos.ResultDocument;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -9,6 +11,8 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -106,6 +110,34 @@ class StatusStore {
     } catch (NoSuchKeyException e) {
       return Optional.empty();
     }
+  }
+
+  /** One page of job IDs under {@code status/{userId}/}, in S3 key order. */
+  record JobIdPage(List<String> jobIds, String nextToken) {}
+
+  /**
+   * Lists one page of job IDs for exactly this user's prefix. Keys that aren't {@code <jobId>.json}
+   * directly under the prefix are skipped.
+   */
+  JobIdPage listJobIds(String userId, String continuationToken, int pageSize) {
+    String prefix = "status/" + userId + "/";
+    ListObjectsV2Response page =
+        s3.listObjectsV2(
+            ListObjectsV2Request.builder()
+                .bucket(bucket)
+                .prefix(prefix)
+                .maxKeys(pageSize)
+                .continuationToken(continuationToken)
+                .build());
+    List<String> ids = new ArrayList<>();
+    for (var object : page.contents()) {
+      String rest = object.key().substring(prefix.length());
+      if (rest.endsWith(".json") && !rest.contains("/")) {
+        ids.add(rest.substring(0, rest.length() - ".json".length()));
+      }
+    }
+    String next = Boolean.TRUE.equals(page.isTruncated()) ? page.nextContinuationToken() : null;
+    return new JobIdPage(ids, next);
   }
 
   static String resultKey(String userId, String jobId) {

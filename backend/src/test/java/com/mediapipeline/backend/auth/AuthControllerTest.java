@@ -40,7 +40,10 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Object;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -163,6 +166,9 @@ class AuthControllerTest {
         .andExpect(status().isUnauthorized())
         .andExpect(header().string("WWW-Authenticate", "Bearer"))
         .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+    mvc.perform(get("/api/jobs"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
     mvc.perform(
             post("/api/uploads")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -219,6 +225,35 @@ class AuthControllerTest {
 
     assertThat(requestedKeys)
         .containsExactlyInAnyOrder(aliceKey, "status/" + bobId + "/" + JOB_ID + ".json");
+
+    // The gallery lists only the caller's own prefix, whatever query parameters are sent.
+    Set<String> listedPrefixes = new HashSet<>();
+    when(s3.listObjectsV2(any(ListObjectsV2Request.class)))
+        .thenAnswer(
+            call -> {
+              String prefix = call.<ListObjectsV2Request>getArgument(0).prefix();
+              listedPrefixes.add(prefix);
+              ListObjectsV2Response.Builder page =
+                  ListObjectsV2Response.builder().isTruncated(false);
+              return aliceKey.startsWith(prefix)
+                  ? page.contents(S3Object.builder().key(aliceKey).build()).build()
+                  : page.build();
+            });
+
+    mvc.perform(get("/api/jobs").header("Authorization", bearer(alice)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].jobId").value(JOB_ID));
+    mvc.perform(
+            get("/api/jobs")
+                .param("userId", aliceId)
+                .param("prefix", "status/" + aliceId + "/")
+                .header("Authorization", bearer(bob)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0));
+
+    assertThat(listedPrefixes)
+        .containsExactlyInAnyOrder("status/" + aliceId + "/", "status/" + bobId + "/");
   }
 
   // --- helpers ---
