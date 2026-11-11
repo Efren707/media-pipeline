@@ -30,8 +30,8 @@ Run the whole app on AWS for the demo: Spring Boot and the React build on one `t
 | Teardown | `destroy-demo.sh` = redeploy without `withServer`/`withDb` (removes EC2 + RDS; S3/Lambda/SNS stay) after typed confirmation | Same pattern as Phase 7. The cheap pipeline stays deployed between sessions. |
 
 ## Tasks
-- [ ] CDK `withServer` (+ private RDS when combined): EC2, security groups, instance profile, AMI/key parameters, user data, `ServerPublicIp` output; tests check no `AWS::IAM::Role`, no `0.0.0.0/0` ingress, no 80/8080/5432 open to any CIDR when the server exists, RDS private (Efren)
-- [ ] `deploy/nginx.conf`, `deploy/media-pipeline.service` (Efren)
+- [x] CDK `withServer` (+ private RDS when combined): EC2, security groups, instance profile, AMI/key parameters, user data, `ServerPublicIp` output; tests check no `AWS::IAM::Role`, no `0.0.0.0/0` ingress, no 80/8080/5432 open to any CIDR when the server exists, RDS private (Efren)
+- [x] `deploy/nginx.conf`, `deploy/media-pipeline.service` (Efren)
 - [ ] `scripts/deploy-demo.sh`: check the `voclabs` identity, build and test, deploy with `withServer`+`withDb` and the caller's `/32`, wait for SSH and cloud-init, `scp` the JAR, `dist/` and env file, enable and restart the service, run a health check through SSH, print the tunnel command. Python unit tests in `scripts/tests/` cover argument and identity guards (Efren)
 - [ ] `scripts/demo-status.sh` (stack, EC2 and RDS state, rough cost per hour while running, no secrets), `stop-demo.sh` (stop EC2 + RDS), `destroy-demo.sh` (typed confirmation, then a teardown check that no instance or DB remains) (Efren)
 - [ ] Docs: infra README, SETUP.md (download `labsuser.pem`, tunnel), `media_pipeline.md` deployment section (Efren)
@@ -55,9 +55,10 @@ Run the whole app on AWS for the demo: Spring Boot and the React build on one `t
 
 ## Open questions
 - Does `stop-demo.sh` add enough over destroy? RDS restarts take about 5 minutes, and a stopped RDS still bills storage and restarts itself after 7 days. Proposal: keep it, but recommend destroy at session end.
-- Does the Academy SCP allow `ec2:RunInstances` for `t3.micro` with an instance profile through CloudFormation? This is checked first thing in the CDK task.
+- ~~Does the Academy SCP allow `ec2:RunInstances` for `t3.micro` with an instance profile?~~ Yes: `run-instances --dry-run` with `vockey`, `myS3Role`, IMDSv2 and the SSM AMI returned "would have succeeded" (2026-11-10). A real CloudFormation launch is still checked in the live task.
 
 ## Progress log
 - 2026-11-10 Efren: planned Phase 10 from the demo-first spec (D22). Probes: key pair `vockey` exists, instance profile `myS3Role` exists, default VPC present, and the AL2023 SSM public parameter is readable. Next: CDK `withServer`.
+- 2026-11-10 Efren: CDK `withServer` (+ private RDS) with 29 CDK tests; `run-instances --dry-run` confirmed the launch permissions. Added `deploy/nginx.conf`, `deploy/media-pipeline.service`, `scripts/install-demo-app.sh` (the core of `deploy-demo.sh`: waits for cloud-init, copies the app over scp, sends the env file over SSH stdin as root 0600, health-checks `/api/jobs` → 401). When `withServer` is set, the stack adds `http://localhost:8088` to the bucket CORS. Live run: `cdk deploy -c withServer=true -c sshCidr=<ip>/32 -c withDb=true` (about 6 min), then install, then tunnel. Results: full flow through the tunnel (signup, S3 PUT, COMPLETE with thumbnail, label search); :80/:8080 blocked from the internet; RDS `PubliclyAccessible: false` and 5432 blocked from the laptop; no `~/.aws` on the host, which uses `instance-profile/myS3Role`; Spring bound to `127.0.0.1:8080`; env file `root:root 600`; no secrets in the journal. Efren chose to keep the SSH tunnel (no public port). Torn down at the end of the session. Next: wrap the steps into `deploy-demo.sh` plus the status, stop and destroy scripts.
 
 ## Outcome notes
