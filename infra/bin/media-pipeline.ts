@@ -31,17 +31,27 @@ const corsOrigins = (process.env.MP_CORS_ORIGINS ?? "http://localhost:5173")
 const app = new cdk.App();
 
 // Phase 7: RDS only when asked for, e.g. `cdk deploy -c withDb=true -c dbClientCidr=1.2.3.4/32`.
+// Phase 10 (D22): `-c withServer=true -c sshCidr=1.2.3.4/32` adds the demo EC2. With both, the
+// database is private to the server and dbClientCidr is not needed.
 const withDb = String(app.node.tryGetContext("withDb") ?? "false") === "true";
+const withServer = String(app.node.tryGetContext("withServer") ?? "false") === "true";
 const dbClientCidr = app.node.tryGetContext("dbClientCidr");
-if (withDb && !dbClientCidr) {
+const sshCidr = app.node.tryGetContext("sshCidr");
+if (withDb && !withServer && !dbClientCidr) {
   throw new Error("withDb=true needs -c dbClientCidr=<your public IPv4>/32.");
+}
+if (withServer && !sshCidr) {
+  throw new Error("withServer=true needs -c sshCidr=<your public IPv4>/32.");
 }
 
 new MediaPipelineStack(app, `MediaPipeline-${owner}`, {
   env: { account, region },
   owner,
   corsOrigins,
-  database: withDb ? { clientCidr: String(dbClientCidr) } : undefined,
+  database: withDb
+    ? { clientCidr: dbClientCidr === undefined ? undefined : String(dbClientCidr) }
+    : undefined,
+  server: withServer ? { sshCidr: String(sshCidr) } : undefined,
   synthesizer: new cdk.CliCredentialsStackSynthesizer({
     fileAssetsBucketName: `media-pipeline-cdk-assets-${account}`,
     bucketPrefix: "assets/"

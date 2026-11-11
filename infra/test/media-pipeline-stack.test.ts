@@ -237,3 +237,118 @@ describe("MediaPipelineStack with the opt-in database", () => {
     }
   );
 });
+
+describe("MediaPipelineStack with the demo server and private database (D22)", () => {
+  const build = (sshCidr: string, withDb = true) =>
+    new MediaPipelineStack(new App(), "ServerStack", {
+      env: { account: "123456789012", region: "us-east-1" },
+      owner: "testuser",
+      corsOrigins: ["http://localhost:5173"],
+      database: withDb ? {} : undefined,
+      server: { sshCidr }
+    });
+  const template = Template.fromStack(build("203.0.113.7/32"));
+
+  test("creates one t3.micro with myS3Role, IMDSv2 and an encrypted root volume", () => {
+    template.resourceCountIs("AWS::EC2::Instance", 1);
+    template.hasResourceProperties("AWS::EC2::Instance", {
+      InstanceType: "t3.micro",
+      IamInstanceProfile: "myS3Role",
+      ImageId: { Ref: "ServerImageId" },
+      KeyName: { Ref: "ServerKeyName" },
+      MetadataOptions: { HttpTokens: "required", HttpPutResponseHopLimit: 1 },
+      BlockDeviceMappings: [
+        Match.objectLike({
+          Ebs: Match.objectLike({ VolumeSize: 8, VolumeType: "gp3", Encrypted: true })
+        })
+      ]
+    });
+    template.hasResource("AWS::EC2::Instance", { DeletionPolicy: "Delete" });
+    const params = template.toJSON().Parameters;
+    expect(params.ServerImageId).toMatchObject({
+      Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
+      Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+    });
+    expect(params.ServerKeyName).toMatchObject({
+      Type: "AWS::EC2::KeyPair::KeyName",
+      Default: "vockey"
+    });
+  });
+
+  test("opens only SSH from the one client address to the server", () => {
+    template.hasResourceProperties("AWS::EC2::SecurityGroup", {
+      GroupName: "mp-testuser-server",
+      SecurityGroupIngress: [
+        Match.objectLike({ IpProtocol: "tcp", FromPort: 22, ToPort: 22, CidrIp: "203.0.113.7/32" })
+      ]
+    });
+  });
+
+  test("makes the database private and reachable only from the server", () => {
+    template.hasResourceProperties("AWS::RDS::DBInstance", { PubliclyAccessible: false });
+    template.hasResourceProperties("AWS::EC2::SecurityGroup", {
+      GroupName: "mp-testuser-db",
+      SecurityGroupIngress: [
+        Match.objectLike({
+          FromPort: 5432,
+          ToPort: 5432,
+          SourceSecurityGroupId: { "Fn::GetAtt": ["ServerSecurityGroup", "GroupId"] }
+        })
+      ]
+    });
+  });
+
+  test("opens no port to the internet and only SSH to any CIDR", () => {
+    const groups = Object.values(template.findResources("AWS::EC2::SecurityGroup"));
+    expect(groups).toHaveLength(2);
+    for (const group of groups) {
+      for (const rule of group.Properties.SecurityGroupIngress ?? []) {
+        expect(rule.CidrIp).not.toBe("0.0.0.0/0");
+        expect(rule.CidrIpv6).toBeUndefined();
+        if (rule.CidrIp) expect(rule.FromPort).toBe(22);
+      }
+    }
+  });
+
+  test("installs only runtimes in user data and keeps secrets out of the template", () => {
+    const [instanceResource] = Object.values(template.findResources("AWS::EC2::Instance"));
+    const userData: string = instanceResource.Properties.UserData["Fn::Base64"];
+    expect(userData).toContain("java-21-amazon-corretto-headless");
+    expect(userData).not.toMatch(/MP_JWT_SECRET|MP_DB_|PASSWORD|SECRET|TOKEN/i);
+    expect(JSON.stringify(template.toJSON())).not.toMatch(
+      /aws_secret_access_key|aws_session_token|AKIA|ASIA/
+    );
+  });
+
+  test("outputs the instance and its public IP for the tunnel", () => {
+    template.hasOutput("ServerInstanceId", {});
+    template.hasOutput("ServerPublicIp", {});
+  });
+
+  test("still creates no IAM roles, instance profiles or NAT gateway", () => {
+    template.resourceCountIs("AWS::IAM::Role", 0);
+    template.resourceCountIs("AWS::IAM::InstanceProfile", 0);
+    template.resourceCountIs("AWS::EC2::NatGateway", 0);
+  });
+
+  test("can run without the database", () => {
+    const serverOnly = Template.fromStack(build("203.0.113.7/32", false));
+    serverOnly.resourceCountIs("AWS::EC2::Instance", 1);
+    serverOnly.resourceCountIs("AWS::RDS::DBInstance", 0);
+  });
+
+  test.each(["0.0.0.0/0", "203.0.113.0/24", "203.0.113.7"])("rejects SSH CIDR %s", (cidr) => {
+    expect(() => build(cidr)).toThrow(/sshCidr/);
+  });
+
+  test("creates no server unless asked to", () => {
+    const plain = Template.fromStack(
+      new MediaPipelineStack(new App(), "PlainStack", {
+        env: { account: "123456789012", region: "us-east-1" },
+        owner: "testuser",
+        corsOrigins: ["http://localhost:5173"]
+      })
+    );
+    plain.resourceCountIs("AWS::EC2::Instance", 0);
+  });
+});
