@@ -117,3 +117,9 @@ Most of D1–D8 come from the sandbox service tests in [SETUP.md §4](../SETUP.m
 - **Replaces:** "label search with results indexed into RDS" in the ROADMAP Phase 9 scope.
 - **Why:** RDS is opt-in and billed hourly (D20), so search shouldn't depend on it. `GET /api/jobs` lists `status/{userId}/` (the prefix comes from the JWT only), reads at most 100 valid jobs, sorts them by `updatedAt`, applies a case-insensitive label substring filter in Spring Boot, then applies `limit`. Beyond 100 it returns `truncated: true`. This costs nothing, needs no schema or sync path, and is fast enough for a class demo.
 - **Alternatives:** an RDS jobs/labels table (real indexed search, but needs a sync from S3 results and a running DB for every demo); cursor pagination (not needed at demo scale; a portfolio follow-up).
+
+### D22: Demo deployment on one EC2 behind an SSH tunnel
+- **Date:** 2026-11-10
+- **Replaces:** "Spring Boot on EC2 behind an ALB, React on S3 + CloudFront" in the ROADMAP Phase 10 scope.
+- **Why:** The app only has to run during demo sessions, on a $20 budget. One opt-in `t3.micro` (`myS3Role`, `vockey`) runs Nginx, which serves the React build and proxies `/api` to Spring Boot on `127.0.0.1:8080`. RDS becomes private, reachable only from the EC2 security group. The only open port is SSH from the deployer's `/32`, and the demo runs through `ssh -L`. Artifacts are built on the laptop and copied over SSH. Secrets go into a root-only env file over SSH, never into user data or the template. A redeploy without the opt-in flags removes EC2 and RDS and keeps the cheap pipeline.
+- **Alternatives:** ALB + CloudFront (closer to production, but more cost, more setup, and untested sandbox permissions before Nov 16); a public HTTP port limited to one `/32` (simpler to browse, but plain HTTP on the internet and a wider attack surface); Elastic Beanstalk (needs its own service roles, which we can't create).
