@@ -11,7 +11,7 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 #### Efren (updated 2026-11-09)
 - **Working on:** merged #17 (Phase 5 evidence), #18 (Phase 6 watchdog), #20 (Phase 7: opt-in RDS, JWT signup/login, per-user isolation, React login + navbar) and #21 (Phase 7 ✅)
 - **Next:** Phase 8 notifications (SNS subscription at signup, per-user filter); agree on the split with Fahad
-- **Blockers:** none. `MediaPipeline-efren` is S3 + Lambda only (no RDS). Backend tests need Docker Desktop running
+- **Blockers:** none. `MediaPipeline-efren` is S3 + Lambda only (RDS deleted). Lab session ended, so refresh credentials next session. Backend tests need Docker Desktop running
 
 #### Fahad (updated 2026-11-10)
 - **Working on:** Phase 8 filtered SNS notifications on `feat/demo-first-completion`
