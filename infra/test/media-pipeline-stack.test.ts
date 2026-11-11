@@ -352,3 +352,117 @@ describe("MediaPipelineStack with the demo server and private database (D22)", (
     plain.resourceCountIs("AWS::EC2::Instance", 0);
   });
 });
+
+describe("MediaPipelineStack with the public CloudFront URL (D23)", () => {
+  const prefixListId = "pl-3b927c52";
+  const build = (cloudfrontPrefixListId?: string) =>
+    new MediaPipelineStack(new App(), "PublicStack", {
+      env: { account: "123456789012", region: "us-east-1" },
+      owner: "testuser",
+      corsOrigins: ["http://localhost:5173", "http://localhost:8088"],
+      database: {},
+      server: { sshCidr: "203.0.113.7/32", cloudfrontPrefixListId }
+    });
+  const template = Template.fromStack(build(prefixListId));
+
+  test("fronts the server's public DNS name over HTTP with an HTTPS viewer policy", () => {
+    template.resourceCountIs("AWS::CloudFront::Distribution", 1);
+    template.hasResourceProperties("AWS::CloudFront::Distribution", {
+      DistributionConfig: Match.objectLike({
+        Enabled: true,
+        PriceClass: "PriceClass_100",
+        Origins: [
+          Match.objectLike({
+            DomainName: { "Fn::GetAtt": ["Server", "PublicDnsName"] },
+            CustomOriginConfig: Match.objectLike({
+              OriginProtocolPolicy: "http-only",
+              HTTPPort: 80
+            })
+          })
+        ],
+        DefaultCacheBehavior: Match.objectLike({ ViewerProtocolPolicy: "redirect-to-https" })
+      })
+    });
+  });
+
+  test("never caches the API and forwards Authorization with the viewer headers", () => {
+    template.hasResourceProperties("AWS::CloudFront::CachePolicy", {
+      CachePolicyConfig: Match.objectLike({
+        Name: "mp-testuser-api",
+        MinTTL: 0,
+        DefaultTTL: 0,
+        MaxTTL: 1,
+        ParametersInCacheKeyAndForwardedToOrigin: Match.objectLike({
+          HeadersConfig: { HeaderBehavior: "whitelist", Headers: ["Authorization"] },
+          QueryStringsConfig: { QueryStringBehavior: "all" }
+        })
+      })
+    });
+    const [dist] = Object.values(template.findResources("AWS::CloudFront::Distribution"));
+    const behaviors = dist.Properties.DistributionConfig.CacheBehaviors;
+    const api = behaviors.find((b: { PathPattern: string }) => b.PathPattern === "/api/*");
+    expect(api).toMatchObject({
+      ViewerProtocolPolicy: "https-only",
+      CachePolicyId: { "Fn::GetAtt": ["ApiCachePolicy", "Id"] },
+      // Managed AllViewerExceptHostHeader
+      OriginRequestPolicyId: "b689b0a8-53d0-40ab-baf2-68738e2966ac"
+    });
+    expect(api.AllowedMethods).toEqual(expect.arrayContaining(["POST", "PUT", "DELETE"]));
+  });
+
+  test("opens port 80 only to the CloudFront prefix list, never to a CIDR", () => {
+    template.hasResourceProperties("AWS::EC2::SecurityGroup", {
+      GroupName: "mp-testuser-server",
+      SecurityGroupIngress: [
+        Match.objectLike({ FromPort: 22, CidrIp: "203.0.113.7/32" }),
+        Match.objectLike({ FromPort: 80, ToPort: 80, SourcePrefixListId: prefixListId })
+      ]
+    });
+    for (const group of Object.values(template.findResources("AWS::EC2::SecurityGroup"))) {
+      for (const rule of group.Properties.SecurityGroupIngress ?? []) {
+        expect(rule.CidrIp).not.toBe("0.0.0.0/0");
+        expect(rule.CidrIpv6).toBeUndefined();
+        if (rule.CidrIp) expect(rule.FromPort).toBe(22);
+        if (rule.FromPort === 80) expect(rule.SourcePrefixListId).toBe(prefixListId);
+      }
+    }
+  });
+
+  test("allows uploads from the distribution's HTTPS origin and keeps the others", () => {
+    const [bucket] = Object.values(template.findResources("AWS::S3::Bucket"));
+    const origins = bucket.Properties.CorsConfiguration.CorsRules[0].AllowedOrigins;
+    expect(origins).toEqual(
+      expect.arrayContaining([
+        "http://localhost:5173",
+        "http://localhost:8088",
+        { "Fn::Join": ["", ["https://", { "Fn::GetAtt": ["PublicDistribution", "DomainName"] }]] }
+      ])
+    );
+  });
+
+  test("outputs the public URL and keeps the database private", () => {
+    template.hasOutput("PublicUrl", {});
+    template.hasResourceProperties("AWS::RDS::DBInstance", { PubliclyAccessible: false });
+  });
+
+  test("still creates no IAM roles, instance profiles or NAT gateway", () => {
+    template.resourceCountIs("AWS::IAM::Role", 0);
+    template.resourceCountIs("AWS::IAM::InstanceProfile", 0);
+    template.resourceCountIs("AWS::EC2::NatGateway", 0);
+  });
+
+  test("adds no distribution or port 80 without the prefix list", () => {
+    const tunnelOnly = Template.fromStack(build());
+    tunnelOnly.resourceCountIs("AWS::CloudFront::Distribution", 0);
+    tunnelOnly.resourceCountIs("AWS::CloudFront::CachePolicy", 0);
+    for (const group of Object.values(tunnelOnly.findResources("AWS::EC2::SecurityGroup"))) {
+      for (const rule of group.Properties.SecurityGroupIngress ?? []) {
+        expect(rule.FromPort).not.toBe(80);
+      }
+    }
+  });
+
+  test.each(["0.0.0.0/0", "sg-0123abcd", "pl-XYZ", ""])("rejects prefix list %p", (id) => {
+    expect(() => build(id)).toThrow(/cloudfrontPrefixListId/);
+  });
+});

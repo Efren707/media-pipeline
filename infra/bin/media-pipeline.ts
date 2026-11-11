@@ -44,6 +44,19 @@ if (withServer && !sshCidr) {
   throw new Error("withServer=true needs -c sshCidr=<your public IPv4>/32.");
 }
 
+// D23: `-c public=true -c cloudfrontPrefixList=pl-...` adds a CloudFront HTTPS URL for classmates.
+// deploy-demo.sh resolves the prefix list ID (com.amazonaws.global.cloudfront.origin-facing).
+const isPublic = String(app.node.tryGetContext("public") ?? "false") === "true";
+const cloudfrontPrefixList = app.node.tryGetContext("cloudfrontPrefixList");
+if (isPublic && !withServer) {
+  throw new Error("public=true needs withServer=true: CloudFront fronts the demo EC2.");
+}
+if (isPublic && !cloudfrontPrefixList) {
+  throw new Error(
+    "public=true needs -c cloudfrontPrefixList=<pl-id of com.amazonaws.global.cloudfront.origin-facing>."
+  );
+}
+
 // The demo is browsed through `ssh -L 8088:localhost:80` (D22), and the browser PUTs uploads
 // straight to S3, so the bucket must allow that origin while the server exists.
 const DEMO_TUNNEL_ORIGIN = "http://localhost:8088";
@@ -58,7 +71,12 @@ new MediaPipelineStack(app, `MediaPipeline-${owner}`, {
   database: withDb
     ? { clientCidr: dbClientCidr === undefined ? undefined : String(dbClientCidr) }
     : undefined,
-  server: withServer ? { sshCidr: String(sshCidr) } : undefined,
+  server: withServer
+    ? {
+        sshCidr: String(sshCidr),
+        cloudfrontPrefixListId: isPublic ? String(cloudfrontPrefixList) : undefined
+      }
+    : undefined,
   synthesizer: new cdk.CliCredentialsStackSynthesizer({
     fileAssetsBucketName: `media-pipeline-cdk-assets-${account}`,
     bucketPrefix: "assets/"

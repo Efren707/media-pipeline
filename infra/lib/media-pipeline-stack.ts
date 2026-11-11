@@ -11,6 +11,7 @@ import {
   Tags,
   Validations
 } from "aws-cdk-lib";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
@@ -33,6 +34,12 @@ export interface DatabaseProps {
 export interface ServerProps {
   /** The only address allowed to reach port 22, as a single IPv4 /32. */
   readonly sshCidr: string;
+  /**
+   * Public HTTPS URL for classmates (D23). The ID of the AWS-managed prefix list
+   * `com.amazonaws.global.cloudfront.origin-facing` in this region; when set, a CloudFront
+   * distribution fronts the server and port 80 opens only to that list.
+   */
+  readonly cloudfrontPrefixListId?: string;
 }
 
 export interface MediaPipelineStackProps extends StackProps {
@@ -51,6 +58,8 @@ install -d -o mp -g mp -m 0750 /opt/media-pipeline
 install -d -m 0755 /usr/share/nginx/media-pipeline
 systemctl enable nginx
 `;
+
+const PREFIX_LIST_ID = /^pl-[0-9a-f]{8,17}$/;
 
 const SINGLE_IPV4_CIDR =
   /^((25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(25[0-5]|2[0-4]\d|1?\d?\d)\/32$/;
@@ -71,6 +80,10 @@ export class MediaPipelineStack extends Stack {
       throw new Error(
         `sshCidr must be a single IPv4 address as /32, got "${props.server.sshCidr}".`
       );
+    }
+    const prefixListId = props.server?.cloudfrontPrefixListId;
+    if (prefixListId !== undefined && !PREFIX_LIST_ID.test(prefixListId)) {
+      throw new Error(`cloudfrontPrefixListId must look like pl-0123abcd, got "${prefixListId}".`);
     }
     super(scope, id, props);
 
@@ -102,17 +115,7 @@ export class MediaPipelineStack extends Stack {
         ignorePublicAcls: true,
         restrictPublicBuckets: true
       },
-      corsConfiguration: {
-        corsRules: [
-          {
-            allowedMethods: ["GET", "HEAD", "PUT"],
-            allowedOrigins: props.corsOrigins,
-            allowedHeaders: ["Content-Type", "x-amz-content-sha256", "x-amz-date"],
-            exposedHeaders: ["ETag"],
-            maxAge: 300
-          }
-        ]
-      },
+      corsConfiguration: corsConfiguration(props.corsOrigins),
       lifecycleConfiguration: {
         rules: [
           {
@@ -342,18 +345,30 @@ export class MediaPipelineStack extends Stack {
       description: "SNS topic receiving completed result-object events"
     });
 
-    const serverSecurityGroup = props.server ? this.addServer(prefix, props.server) : undefined;
+    const server = props.server ? this.addServer(prefix, props.server) : undefined;
+    if (server && prefixListId) {
+      const domainName = this.addPublicDistribution(prefix, server.instance);
+      // The browser PUTs uploads straight to S3 from the public page, so allow that origin too.
+      mediaBucket.corsConfiguration = corsConfiguration([
+        ...props.corsOrigins,
+        `https://${domainName}`
+      ]);
+    }
     if (props.database) {
-      this.addDatabase(prefix, props.database, serverSecurityGroup);
+      this.addDatabase(prefix, props.database, server?.securityGroup);
     }
   }
 
   /**
    * One t3.micro on Amazon Linux 2023 in the default VPC with the existing myS3Role instance
    * profile, so the backend gets S3 access without stored keys. Only SSH from one /32 is open;
-   * the app is reached through an SSH tunnel (D22). Returns the security group for RDS ingress.
+   * the app is reached through an SSH tunnel (D22). With a CloudFront prefix list, port 80 also
+   * opens to CloudFront only (D23). Returns the instance and its security group (for RDS ingress).
    */
-  private addServer(prefix: string, server: ServerProps): ec2.CfnSecurityGroup {
+  private addServer(
+    prefix: string,
+    server: ServerProps
+  ): { instance: ec2.CfnInstance; securityGroup: ec2.CfnSecurityGroup } {
     const imageId = new CfnParameter(this, "ServerImageId", {
       type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>",
       default: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64",
@@ -367,7 +382,9 @@ export class MediaPipelineStack extends Stack {
 
     const securityGroup = new ec2.CfnSecurityGroup(this, "ServerSecurityGroup", {
       groupName: `${prefix}-server`,
-      groupDescription: "SSH from one developer IP only; the app is reached through a tunnel",
+      groupDescription: server.cloudfrontPrefixListId
+        ? "SSH from one developer IP; HTTP from CloudFront only"
+        : "SSH from one developer IP only; the app is reached through a tunnel",
       securityGroupIngress: [
         {
           ipProtocol: "tcp",
@@ -375,7 +392,18 @@ export class MediaPipelineStack extends Stack {
           toPort: 22,
           cidrIp: server.sshCidr,
           description: "Developer laptop (SSH tunnel)"
-        }
+        },
+        ...(server.cloudfrontPrefixListId
+          ? [
+              {
+                ipProtocol: "tcp",
+                fromPort: 80,
+                toPort: 80,
+                sourcePrefixListId: server.cloudfrontPrefixListId,
+                description: "CloudFront origin-facing servers (D23)"
+              }
+            ]
+          : [])
       ]
     });
 
@@ -405,7 +433,86 @@ export class MediaPipelineStack extends Stack {
       value: instance.attrPublicIp,
       description: "SSH target for the demo tunnel"
     });
-    return securityGroup;
+    return { instance, securityGroup };
+  }
+
+  /**
+   * Public HTTPS front door for the demo (D23): viewers get the CloudFront certificate on
+   * `*.cloudfront.net`, and CloudFront reaches Nginx over HTTP on the instance's public DNS name.
+   * `/api/*` keeps `Authorization` in the cache key (GET requests would otherwise drop it) with a
+   * 1-second max TTL; Spring sends `no-store`, so API responses are not reused. Returns the
+   * distribution's domain name.
+   */
+  private addPublicDistribution(prefix: string, instance: ec2.CfnInstance): string {
+    const apiCachePolicy = new cloudfront.CfnCachePolicy(this, "ApiCachePolicy", {
+      cachePolicyConfig: {
+        name: `${prefix}-api`,
+        comment: "API: forward Authorization and query strings, effectively no caching",
+        minTtl: 0,
+        defaultTtl: 0,
+        maxTtl: 1,
+        parametersInCacheKeyAndForwardedToOrigin: {
+          enableAcceptEncodingGzip: false,
+          headersConfig: { headerBehavior: "whitelist", headers: ["Authorization"] },
+          queryStringsConfig: { queryStringBehavior: "all" },
+          cookiesConfig: { cookieBehavior: "none" }
+        }
+      }
+    });
+
+    const originId = "demo-server";
+    const distribution = new cloudfront.CfnDistribution(this, "PublicDistribution", {
+      distributionConfig: {
+        enabled: true,
+        comment: `${prefix} demo (D23)`,
+        priceClass: "PriceClass_100",
+        httpVersion: "http2",
+        origins: [
+          {
+            id: originId,
+            domainName: instance.attrPublicDnsName,
+            customOriginConfig: {
+              originProtocolPolicy: "http-only",
+              httpPort: 80,
+              originReadTimeout: 30
+            }
+          }
+        ],
+        defaultCacheBehavior: {
+          targetOriginId: originId,
+          viewerProtocolPolicy: "redirect-to-https",
+          allowedMethods: ["GET", "HEAD"],
+          cachePolicyId: cloudfront.CachePolicy.CACHING_DISABLED.cachePolicyId,
+          compress: true
+        },
+        cacheBehaviors: [
+          {
+            pathPattern: "/api/*",
+            targetOriginId: originId,
+            viewerProtocolPolicy: "https-only",
+            allowedMethods: ["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
+            cachePolicyId: apiCachePolicy.attrId,
+            originRequestPolicyId:
+              cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER.originRequestPolicyId,
+            compress: false
+          },
+          {
+            pathPattern: "/assets/*",
+            targetOriginId: originId,
+            viewerProtocolPolicy: "redirect-to-https",
+            allowedMethods: ["GET", "HEAD"],
+            cachePolicyId: cloudfront.CachePolicy.CACHING_OPTIMIZED.cachePolicyId,
+            compress: true
+          }
+        ]
+      }
+    });
+
+    new CfnOutput(this, "PublicUrl", {
+      value: `https://${distribution.attrDomainName}`,
+      description: "Public HTTPS demo URL for classmates (D23)"
+    });
+    return distribution.attrDomainName;
   }
 
   /**
@@ -492,4 +599,19 @@ export class MediaPipelineStack extends Stack {
       description: "PostgreSQL port"
     });
   }
+}
+
+/** Browser uploads go straight to S3 with presigned PUTs, so each app origin must be allowed. */
+function corsConfiguration(origins: string[]): s3.CfnBucket.CorsConfigurationProperty {
+  return {
+    corsRules: [
+      {
+        allowedMethods: ["GET", "HEAD", "PUT"],
+        allowedOrigins: origins,
+        allowedHeaders: ["Content-Type", "x-amz-content-sha256", "x-amz-date"],
+        exposedHeaders: ["ETag"],
+        maxAge: 300
+      }
+    ]
+  };
 }
