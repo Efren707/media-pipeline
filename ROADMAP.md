@@ -8,10 +8,10 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 **Active phase:** Phase 8 notification implementation is locally verified; live two-user AWS isolation proof is pending
 
-#### Efren (updated 2026-11-09)
-- **Working on:** merged #17 (Phase 5 evidence), #18 (Phase 6 watchdog), #20 (Phase 7: opt-in RDS, JWT signup/login, per-user isolation, React login + navbar) and #21 (Phase 7 ✅)
-- **Next:** Phase 8 notifications (SNS subscription at signup, per-user filter); agree on the split with Fahad
-- **Blockers:** none. `MediaPipeline-efren` is S3 + Lambda only (RDS deleted). Lab session ended, so refresh credentials next session. Backend tests need Docker Desktop running
+#### Efren (updated 2026-11-10)
+- **Working on:** Phase 9 plan (gallery + label search, D21) on `docs/plan-09-gallery-search`; merged #24 (Phase 7 decision renumbered to D20)
+- **Next:** after the plan merges, contract + backend `GET /api/jobs`, then the React gallery
+- **Blockers:** none. `MediaPipeline-efren` is S3 + Lambda only (no RDS). Lab credentials expired; refresh before the live check. Backend tests need Docker Desktop running
 
 #### Fahad (updated 2026-11-10)
 - **Working on:** Phase 8 filtered SNS notifications on `feat/demo-first-completion`
@@ -52,7 +52,7 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | 7 | [Auth & users](#7-auth--users) | M3 | Nov 1 | Both | ✅ | [plan](docs/plans/07-auth-users.md) |
 | 🏁 | **M3 Core pipeline** | | **Nov 1** | | | |
 | 8 | [Notifications](#8-notifications) | M4 | Nov 3 | Fahad | 🔨 | [plan](docs/plans/08-notifications.md) |
-| 9 | [Status dashboard, gallery & search](#9-status-dashboard-gallery--search) | M4 | Nov 7 | TBD | ⬜ | n/a |
+| 9 | [Status dashboard, gallery & search](#9-status-dashboard-gallery--search) | M4 | Nov 12 | Efren | 📝 | [plan](docs/plans/09-gallery-search.md) |
 | 10 | [Cloud deployment](#10-cloud-deployment) | M4 | Nov 9 | TBD | ⬜ | n/a |
 | 🏁 | **M4 Feature complete** | | **Nov 10** | | | |
 | 11 | [Testing & hardening](#11-testing--hardening) | M5 | Nov 12 | Both | ⬜ | n/a |
@@ -190,7 +190,7 @@ Record significant design choices in [`docs/decisions.md`](docs/decisions.md).
 **Goal:** the user-facing experience from the proposal.
 - Live status per upload (polling the status API)
 - Gallery of thumbnails and labels (presigned GET URLs)
-- Label search, with results indexed into RDS
+- Label search, filtered in the backend over the user's S3 status/result files, capped at 100 jobs (D21). An RDS index is a follow-up
 
 **Depends on:** 5, 7
 **Done when:** a user watches an upload move through each stage, then finds it by searching a label.
