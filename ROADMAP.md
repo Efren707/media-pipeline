@@ -9,8 +9,8 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 **Active phase:** Phase 8 (Fahad) awaits its live two-user SNS proof; Phase 9 (gallery/search) merged and awaits the two-user browser check; Phase 10 (demo server) has its CDK and server setup merged, with scripts still to come
 
 #### Efren (updated 2026-11-10)
-- **Working on:** merged #24 (D20 renumber), #25/#27 (Phase 9/10 plans, D21/D22), #26 (Phase 9 `GET /api/jobs` + React gallery) and #28 (Phase 10 opt-in EC2 + private RDS, Nginx/systemd, `install-demo-app.sh`; verified live through the SSH tunnel, then torn down)
-- **Next:** Phase 9 Alice/Bob browser check, then ✅; Phase 10 CDK `public` (CloudFront public URL for classmates, D23), then `deploy-demo.sh` (with `--public`) (wraps `install-demo-app.sh`), `demo-status.sh`, `stop-demo.sh`, `destroy-demo.sh`, docs, and a live run in a fresh session
+- **Working on:** professor wants classmates to use the live site, so we added D23 (CloudFront public HTTPS URL in front of the demo EC2; plan in #29). Built CDK `public` (`-c public=true -c cloudfrontPrefixList=pl-...`) and verified it live: classmates' flow worked over HTTPS, including from a phone on cellular, then torn down
+- **Next:** Phase 9 Alice/Bob browser check, then ✅; Phase 10 `deploy-demo.sh` (with `--public`; wraps `install-demo-app.sh` and resolves the prefix list ID), `demo-status.sh`, `stop-demo.sh`, `destroy-demo.sh` (waits for the distribution to delete), docs, and a fresh-session live run
 - **Blockers:** none. `MediaPipeline-efren` is S3 + Lambdas + SNS only (no EC2/RDS). SSH key is `~/.ssh/labsuser.pem` (outside the repo). Port 8080 is taken locally, so run the backend with `SERVER_PORT=8081`; local Postgres is the `mp-postgres` container on 5433
 
 #### Fahad (updated 2026-11-10)
