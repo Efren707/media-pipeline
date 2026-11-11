@@ -9,9 +9,9 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 **Active phase:** Phase 8 notification implementation is locally verified; live two-user AWS isolation proof is pending
 
 #### Efren (updated 2026-11-10)
-- **Working on:** Phase 9 plan (gallery + label search, D21) on `docs/plan-09-gallery-search`; merged #24 (Phase 7 decision renumbered to D20)
-- **Next:** after the plan merges, contract + backend `GET /api/jobs`, then the React gallery
-- **Blockers:** none. `MediaPipeline-efren` is S3 + Lambda only (no RDS). Lab credentials expired; refresh before the live check. Backend tests need Docker Desktop running
+- **Working on:** merged #26 (Phase 9 API + gallery, smoke-tested against a redeployed stack); Phase 10 plan (single EC2 + SSH tunnel, D22) on `docs/plan-10-cloud-deployment`
+- **Next:** Phase 9 two-user browser check (then ✅); Phase 10 CDK `withServer`
+- **Blockers:** none. `MediaPipeline-efren` redeployed today (S3 + Lambdas + SNS, no RDS). Local `mp-postgres` container and dev servers are running; stop them at wrap-up
 
 #### Fahad (updated 2026-11-10)
 - **Working on:** Phase 8 filtered SNS notifications on `feat/demo-first-completion`
@@ -52,8 +52,8 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | 7 | [Auth & users](#7-auth--users) | M3 | Nov 1 | Both | ✅ | [plan](docs/plans/07-auth-users.md) |
 | 🏁 | **M3 Core pipeline** | | **Nov 1** | | | |
 | 8 | [Notifications](#8-notifications) | M4 | Nov 3 | Fahad | 🔨 | [plan](docs/plans/08-notifications.md) |
-| 9 | [Status dashboard, gallery & search](#9-status-dashboard-gallery--search) | M4 | Nov 12 | Efren | 📝 | [plan](docs/plans/09-gallery-search.md) |
-| 10 | [Cloud deployment](#10-cloud-deployment) | M4 | Nov 9 | TBD | ⬜ | n/a |
+| 9 | [Status dashboard, gallery & search](#9-status-dashboard-gallery--search) | M4 | Nov 12 | Efren | 🔨 | [plan](docs/plans/09-gallery-search.md) |
+| 10 | [Cloud deployment](#10-cloud-deployment) | M4 | Nov 13 | Efren | 📝 | [plan](docs/plans/10-cloud-deployment.md) |
 | 🏁 | **M4 Feature complete** | | **Nov 10** | | | |
 | 11 | [Testing & hardening](#11-testing--hardening) | M5 | Nov 12 | Both | ⬜ | n/a |
 | 12 | [Presentation prep](#12-presentation-prep) | M5 | Nov 15 | Both | ⬜ | n/a |
@@ -197,12 +197,11 @@ Record significant design choices in [`docs/decisions.md`](docs/decisions.md).
 
 ### 10. Cloud deployment
 **Goal:** the whole app runs on AWS, not just locally.
-- Spring Boot on EC2 (`myS3Role`) behind an ALB, with Auto Scaling if time allows
-- React build on S3 + CloudFront
-- RDS reachable from EC2; deploy and teardown scripts
+- Spring Boot and the React build (Nginx) on one EC2 `t3.micro` (`myS3Role`), reached through an SSH tunnel; no ALB or CloudFront (D22)
+- Private RDS reachable only from EC2; deploy, status, stop and destroy scripts
 
 **Depends on:** 2, 9
-**Done when:** the full demo works from the CloudFront URL in a fresh sandbox session.
+**Done when:** the full demo works through the SSH tunnel in a fresh sandbox session, and teardown leaves no EC2 or RDS running.
 
 ### 11. Testing & hardening
 **Goal:** confidence before the presentation.
