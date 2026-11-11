@@ -9,11 +9,11 @@ This design reflects the services and pre-created roles that were verified in th
 ## 2. Deployed architecture
 
 ```text
-React (local during M2; S3 + CloudFront later)
+React (local during M2; Nginx on the demo EC2, public through CloudFront, D22/D23)
   |
   | HTTPS: request a short-lived upload URL
   v
-Spring Boot (local during M2; EC2 + ALB later)
+Spring Boot (local during M2; demo EC2 behind Nginx, D22/D23)
   |
   | presigned PUT URL
   v

@@ -6,12 +6,12 @@ This is the high-level plan for building the Media Pipeline, one phase at a time
 
 > Update this at the end of every work session (`/wrap-up`). Read it first when starting one (`/start-session`). **Edit only your own block**, so parallel branches merge without conflicts.
 
-**Active phase:** Phase 8 notification implementation is locally verified; live two-user AWS isolation proof is pending
+**Active phase:** Phase 8 (Fahad) awaits its live two-user SNS proof; Phase 9 (gallery/search) merged and awaits the two-user browser check; Phase 10 (demo server) has its CDK and server setup merged, with scripts still to come
 
 #### Efren (updated 2026-11-10)
-- **Working on:** merged #26 (Phase 9 API + gallery, smoke-tested against a redeployed stack); Phase 10 plan (single EC2 + SSH tunnel, D22) on `docs/plan-10-cloud-deployment`
-- **Next:** Phase 9 two-user browser check (then ✅); Phase 10 CDK `withServer`
-- **Blockers:** none. `MediaPipeline-efren` redeployed today (S3 + Lambdas + SNS, no RDS). Local `mp-postgres` container and dev servers are running; stop them at wrap-up
+- **Working on:** merged #24 (D20 renumber), #25/#27 (Phase 9/10 plans, D21/D22), #26 (Phase 9 `GET /api/jobs` + React gallery) and #28 (Phase 10 opt-in EC2 + private RDS, Nginx/systemd, `install-demo-app.sh`; verified live through the SSH tunnel, then torn down)
+- **Next:** Phase 9 Alice/Bob browser check, then ✅; Phase 10 CDK `public` (CloudFront public URL for classmates, D23), then `deploy-demo.sh` (with `--public`) (wraps `install-demo-app.sh`), `demo-status.sh`, `stop-demo.sh`, `destroy-demo.sh`, docs, and a live run in a fresh session
+- **Blockers:** none. `MediaPipeline-efren` is S3 + Lambdas + SNS only (no EC2/RDS). SSH key is `~/.ssh/labsuser.pem` (outside the repo). Port 8080 is taken locally, so run the backend with `SERVER_PORT=8081`; local Postgres is the `mp-postgres` container on 5433
 
 #### Fahad (updated 2026-11-10)
 - **Working on:** Phase 8 filtered SNS notifications on `feat/demo-first-completion`
@@ -53,7 +53,7 @@ Dates are targets. Revisit them at each planning session. Owners are assigned du
 | 🏁 | **M3 Core pipeline** | | **Nov 1** | | | |
 | 8 | [Notifications](#8-notifications) | M4 | Nov 3 | Fahad | 🔨 | [plan](docs/plans/08-notifications.md) |
 | 9 | [Status dashboard, gallery & search](#9-status-dashboard-gallery--search) | M4 | Nov 12 | Efren | 🔨 | [plan](docs/plans/09-gallery-search.md) |
-| 10 | [Cloud deployment](#10-cloud-deployment) | M4 | Nov 13 | Efren | 📝 | [plan](docs/plans/10-cloud-deployment.md) |
+| 10 | [Cloud deployment](#10-cloud-deployment) | M4 | Nov 13 | Efren | 🔨 | [plan](docs/plans/10-cloud-deployment.md) |
 | 🏁 | **M4 Feature complete** | | **Nov 10** | | | |
 | 11 | [Testing & hardening](#11-testing--hardening) | M5 | Nov 12 | Both | ⬜ | n/a |
 | 12 | [Presentation prep](#12-presentation-prep) | M5 | Nov 15 | Both | ⬜ | n/a |
@@ -197,11 +197,12 @@ Record significant design choices in [`docs/decisions.md`](docs/decisions.md).
 
 ### 10. Cloud deployment
 **Goal:** the whole app runs on AWS, not just locally.
-- Spring Boot and the React build (Nginx) on one EC2 `t3.micro` (`myS3Role`), reached through an SSH tunnel; no ALB or CloudFront (D22)
+- Spring Boot and the React build (Nginx) on one EC2 `t3.micro` (`myS3Role`), reached through an SSH tunnel (D22)
+- Opt-in public HTTPS URL for classmates: CloudFront in front of the EC2, port 80 open only to CloudFront; no ALB or custom domain (D23)
 - Private RDS reachable only from EC2; deploy, status, stop and destroy scripts
 
 **Depends on:** 2, 9
-**Done when:** the full demo works through the SSH tunnel in a fresh sandbox session, and teardown leaves no EC2 or RDS running.
+**Done when:** the full demo works through the SSH tunnel and, for classmates, through the CloudFront URL in a fresh sandbox session, and teardown leaves no EC2, RDS or distribution running.
 
 ### 11. Testing & hardening
 **Goal:** confidence before the presentation.
